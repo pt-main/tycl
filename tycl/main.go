@@ -95,6 +95,26 @@ func NewCli() *tap.Parser {
 		false,
 	)
 
+	p.AddCommand("contract", ContractHandler,
+		`[?GN]Generate contract from tycl file.[?RT]
+
+[?BBE]Usage:[?RT]
+    tycl contact <input-config> <output-contract> <type>
+
+[?BBE]Arguments:[?RT]
+    input-file   Path to the TYCL config file (required)
+    output-file  Path where the generated contract will be saved (required)
+    type         Contract type: string, flexible, or dynamic (required)
+
+[?BBE]Example:[?RT]
+    tycl gen config.tycl config.json json
+    tycl gen config.tycl config.yaml yaml
+    tycl gen config.tycl config.toml toml`,
+		[]string{"file-in", "file-out", "type"},
+		nil,
+		false,
+	)
+
 	return p
 }
 

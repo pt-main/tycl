@@ -2,6 +2,7 @@ package contract
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/pt-main/lc/parsing/stringParsing"
@@ -63,7 +64,11 @@ func processPair(vtype, key, value string, con *shared.Contract, valueNode *stri
 	case "floats":
 		con.FloatArrV = append(con.FloatArrV, key)
 	case "objects":
-		con.InnerArrV = append(con.InnerArrV, key)
+		contr, err := ParseContract(value)
+		if err != nil {
+			return err
+		}
+		con.InnerArrV[key] = contr
 	}
 	return
 }
@@ -114,9 +119,15 @@ func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err error) {
 		if valueNode != nil {
 			value = valueNode.Raw
 		}
-		if value == "" && vtype == "object" {
-			err = fmt.Errorf("Can't contract: assertion value is not object (type '%v', must be object)", vtype)
+		isObject := slices.Contains([]string{"object", "objects"}, vtype)
+		if value == "" && isObject {
+			err = fmt.Errorf(
+				"Can't contract: assertion value is not object (type '%v', must be object or objects)",
+				vtype)
 			return
+		}
+		if value != "" && !isObject {
+			err = fmt.Errorf("Can't contract: invalid type assertion")
 		}
 		if err = processPair(vtype, key, value, con, valueNode); err != nil {
 			return

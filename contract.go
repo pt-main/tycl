@@ -70,11 +70,17 @@ func CheckContract(conf *shared.Config, cont *shared.Contract) error {
 		}
 	}
 
-	for _, key := range cont.InnerArrV {
-		if _, ok := conf.InnerArrV[key]; !ok {
+	for key, subCont := range cont.InnerArrV {
+		arr, ok := conf.InnerArrV[key]
+		if !ok {
 			errs = append(errs, fmt.Sprintf("required inner array key %q not found", key))
+			continue
 		}
-
+		for i, item := range arr {
+			if err := CheckContract(item, subCont); err != nil {
+				errs = append(errs, fmt.Sprintf("inner array %q index %d: %v", key, i, err))
+			}
+		}
 	}
 
 	if cont.Type == shared.ContractFlexible {
@@ -121,7 +127,7 @@ func CheckContract(conf *shared.Config, cont *shared.Contract) error {
 		contInnerSet[k] = true
 	}
 	contInnerArrSet := make(map[string]bool)
-	for _, k := range cont.InnerArrV {
+	for k := range cont.InnerArrV {
 		contInnerArrSet[k] = true
 	}
 
@@ -223,7 +229,6 @@ func CheckContract(conf *shared.Config, cont *shared.Contract) error {
 				errs = append(errs, fmt.Sprintf("null key %q with type objects not in contract inner array list", key))
 			}
 		default:
-
 			errs = append(errs, fmt.Sprintf("unsupported type %q for null key %q", typ, key))
 		}
 	}

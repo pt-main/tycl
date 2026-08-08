@@ -18,7 +18,7 @@ It provides strong typing, contracts (schemas), and a readable syntax — with n
 | Format | Problems | TYCL solves |
 |--------|----------|-------------|
 | **JSON** | no comments, everything via `interface{}`, no validation | strong typing, comments, contracts |
-| **YAML** | whitespace-sensitive, no typing | explicit types, deterministic parsing |
+| **YAML** | whitespace‑sensitive, no typing | explicit types, deterministic parsing |
 | **TOML** | limited, no schemas | contracts, flexible structures |
 
 TYCL gives you **80% of the power of complex languages** (CUE, Dhall) at **20% of the complexity**.  
@@ -46,12 +46,12 @@ if err != nil {
 port := cfg.IntV["port"] // 8080
 ```
 
-### CLI (command-line tool)
+### CLI (command‑line tool)
 
 Download a binary from the [releases](https://github.com/pt-main/tycl/releases) page, or install via `go install`:
 
 ```bash
-go install github.com/pt-main/tycl/tycl@latest
+go install github.com/pt-main/tycl/cli@latest
 ```
 
 Commands:
@@ -60,6 +60,7 @@ Commands:
 - `tycl syntax <file...>` — check syntax and types (without a contract).
 - `tycl fmt <type> <file...>` — format (`conf` / `contract`).
 - `tycl gen <input> <output> <json|yaml|toml>` — generate a target format.
+- `tycl contract <input> <output> <type>` — generate a contract from a config (`strict`, `flexible`, `dynamic`).
 
 ---
 
@@ -227,7 +228,7 @@ strict {
     port: int
     host: string
     debug: bool
-    timeout: int         
+    timeout: int
     ports: ints
     server: object = strict {
         host: string
@@ -242,7 +243,15 @@ strict {
 - `flexible` — all listed fields must be present, extra fields are allowed.
 - `strict` — exact match (no extra fields allowed).
 
-Contracts can be nested for objects. Contracts for arrays of objects are not supported — only the presence of the key is checked.
+Contracts support nesting for objects and arrays of objects:
+
+```tycl
+test1: objects = flexible {
+    key: string
+}
+```
+
+This means that every element of the `test1` array must be an object with a `key` field of type `string`.
 
 ---
 
@@ -257,6 +266,18 @@ tycl gen config.tycl out.toml toml
 ```
 
 This turns TYCL into an **intermediate language**: you write safe and readable TYCL, then generate files for integration with other systems.
+
+---
+
+## Generating contracts
+
+TYCL can automatically generate contracts from existing configs:
+
+```bash
+tycl contract config.tycl contract.tycl strict
+```
+
+This is useful when you already have a config and want to create a schema for validating future changes.
 
 ---
 
@@ -277,12 +298,19 @@ func main() {
         port: int = 8080
         host: string = "localhost"
         timeout: int = null
+        test1: objects = [
+            { key: string = "a" },
+            { key: string = "b" }
+        ]
     }`
 
     contract := `strict {
         port: int
         host: string
         timeout: int
+        test1: objects = flexible {
+            key: string
+        }
     }`
 
     cfg, err := tycl.Process(conf, contract)
@@ -296,6 +324,11 @@ func main() {
     // Export to JSON
     jsonData, _ := generation.Json(cfg)
     fmt.Println(jsonData)
+
+    // Generate a contract from the config
+    cont, _ := generation.ContractFromConfig(cfg, shared.ContractStrict)
+    contCode, _ := generation.GenerateContractCode(cont)
+    fmt.Println(contCode)
 }
 ```
 
@@ -305,11 +338,7 @@ If you do not need a contract, pass `""` or `"dynamic{}"` — validation will be
 
 ## Future plans
 
-- **Contract improvements:** support value validation (regular expressions for strings, ranges for numbers, constraints for arrays).
-- **Validation of arrays of objects** in contracts.
 - **VS Code plugin:** syntax highlighting, autocompletion, formatting, live contract checking.
-- **Parsing JSON/YAML/TOML into `Config`** for migrating existing configs.
-- **Contract generation from configs** — automatic schema creation.
 
 ---
 

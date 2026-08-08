@@ -9,7 +9,7 @@ import (
 	"github.com/pt-main/tycl/shared"
 )
 
-var Version = "1.0.1"
+var Version = "1.1.0"
 
 func Process(conf, cont string) (*shared.Config, error) {
 	contr := shared.NewNillContract()

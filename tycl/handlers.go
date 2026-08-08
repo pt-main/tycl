@@ -26,7 +26,7 @@ func ValidHandler(p *tap.Parser, s []string) error {
 	}
 	_, err = tycl.Process(config, contract)
 	if err != nil {
-		color.PrintlnColored("[?RD]Validation failed[?RT]")
+		color.PrintlnColored("[?RD]Validation failed: %v[?RT]", err)
 		return err
 	}
 	color.PrintlnColored("[?GN]Validated[?RT]")
@@ -124,6 +124,40 @@ func GenerateHandler(p *tap.Parser, s []string) error {
 	if err != nil {
 		return err
 	}
+	err = WriteF(s[1], res)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ContractHandler(p *tap.Parser, s []string) error {
+	config, err := OpenF(s[0])
+	if err != nil {
+		return err
+	}
+	contract := "dynamic{}"
+	conf, err := tycl.Process(config, contract)
+	if err != nil {
+		return err
+	}
+	var contT shared.ContractType
+	ctype := s[2]
+	switch ctype {
+	case "dynamic":
+		contT = shared.ContractDynamic
+	case "flexible":
+		contT = shared.ContractFlexible
+	case "strict":
+		contT = shared.ContractStrict
+	default:
+		return fmt.Errorf("Invalid contract type: %v", ctype)
+	}
+	cont, err := generation.ContractFromConfig(conf, contT)
+	if err != nil {
+		return err
+	}
+	res, err := generation.GenerateContractCode(cont)
 	err = WriteF(s[1], res)
 	if err != nil {
 		return err
