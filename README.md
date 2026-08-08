@@ -21,7 +21,7 @@ It provides strong typing, contracts (schemas), and a readable syntax — with n
 | **YAML** | whitespace‑sensitive, no typing | explicit types, deterministic parsing |
 | **TOML** | limited, no schemas | contracts, flexible structures |
 
-TYCL gives you **80% of the power of complex languages** (CUE, Dhall) at **20% of the complexity**.  
+TYCL gives you **70% of the power of complex config languages** at **30% of the complexity**.  
 It works both as a **primary configuration format** and as an **intermediate representation** — you can write TYCL and then generate JSON, YAML, or TOML for integration with other systems.
 
 ---
