@@ -1,0 +1,2 @@
+# tycl
+Typed config language
