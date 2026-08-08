@@ -51,7 +51,7 @@ port := cfg.IntV["port"] // 8080
 Download a binary from the [releases](https://github.com/pt-main/tycl/releases) page, or install via `go install`:
 
 ```bash
-go install github.com/pt-main/tycl/cli@latest
+go install github.com/pt-main/tycl/tycl@latest
 ```
 
 Commands:
