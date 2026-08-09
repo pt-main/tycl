@@ -9,22 +9,24 @@ import (
 	"github.com/pt-main/tycl/format"
 	"github.com/pt-main/tycl/generation"
 	"github.com/pt-main/tycl/shared"
+	"github.com/pt-main/tycl/utils"
 )
 
 func ValidHandler(p *tap.Parser, s []string) error {
-	config, err := OpenF(s[0])
+	config, err := utils.OpenF(s[0])
 	if err != nil {
 		return err
 	}
 	contract := "dynamic{}"
 	if len(s) > 1 {
-		ctr, err := OpenF(s[1])
+		ctr, err := utils.OpenF(s[1])
 		if err != nil {
 			return err
 		}
 		contract = ctr
 	}
-	_, err = tycl.Process(config, contract)
+	_, strict := p.Flags["--strict-keys"]
+	_, err = tycl.Process(config, contract, strict)
 	if err != nil {
 		color.PrintlnColored("[?RD]Validation failed: %v[?RT]", err)
 		return err
@@ -40,14 +42,15 @@ func SyntaxHandler(p *tap.Parser, s []string) error {
 		return nil
 	}
 	for _, arg := range s {
-		config, err := OpenF(arg)
+		config, err := utils.OpenF(arg)
 		if err != nil {
 			color.PrintlnColored("[?RD]Can't open %v:[?RT]\n%v", arg, err)
 			validated = false
 			continue
 		}
 		contract := "dynamic{}"
-		_, err = tycl.Process(config, contract)
+		_, strict := p.Flags["--strict-keys"]
+		_, err = tycl.Process(config, contract, strict)
 		if err != nil {
 			color.PrintlnColored("[?RD]%v validation failed:[?RT]\n%v", arg, err)
 			validated = false
@@ -78,7 +81,7 @@ func FormatHandler(p *tap.Parser, s []string) error {
 		return fmt.Errorf("Can't format: invalid format type")
 	}
 	for _, file := range files {
-		config, err := OpenF(file)
+		config, err := utils.OpenF(file)
 		if err != nil {
 			color.PrintlnColored("[?RD]Can't open %v:[?RT]\n%v", file, err)
 			continue
@@ -88,7 +91,7 @@ func FormatHandler(p *tap.Parser, s []string) error {
 			color.PrintlnColored("[?RD]%v formatting failed:[?RT]\n%v", file, err)
 			continue
 		}
-		err = WriteF(file, res)
+		err = utils.WriteF(file, res)
 		if err != nil {
 			color.PrintlnColored("[?RD]Can't write %v:[?RT]\n%v", file, err)
 			continue
@@ -99,12 +102,13 @@ func FormatHandler(p *tap.Parser, s []string) error {
 }
 
 func GenerateHandler(p *tap.Parser, s []string) error {
-	config, err := OpenF(s[0])
+	config, err := utils.OpenF(s[0])
 	if err != nil {
 		return err
 	}
 	contract := "dynamic{}"
-	conf, err := tycl.Process(config, contract)
+	_, strict := p.Flags["--strict-keys"]
+	conf, err := tycl.Process(config, contract, strict)
 	if err != nil {
 		return err
 	}
@@ -124,7 +128,7 @@ func GenerateHandler(p *tap.Parser, s []string) error {
 	if err != nil {
 		return err
 	}
-	err = WriteF(s[1], res)
+	err = utils.WriteF(s[1], res)
 	if err != nil {
 		return err
 	}
@@ -132,12 +136,13 @@ func GenerateHandler(p *tap.Parser, s []string) error {
 }
 
 func ContractHandler(p *tap.Parser, s []string) error {
-	config, err := OpenF(s[0])
+	config, err := utils.OpenF(s[0])
 	if err != nil {
 		return err
 	}
 	contract := "dynamic{}"
-	conf, err := tycl.Process(config, contract)
+	_, strict := p.Flags["--strict-keys"]
+	conf, err := tycl.Process(config, contract, strict)
 	if err != nil {
 		return err
 	}
@@ -158,7 +163,7 @@ func ContractHandler(p *tap.Parser, s []string) error {
 		return err
 	}
 	res, err := generation.GenerateContractCode(cont)
-	err = WriteF(s[1], res)
+	err = utils.WriteF(s[1], res)
 	if err != nil {
 		return err
 	}

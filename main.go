@@ -4,14 +4,21 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pt-main/tap/color"
 	"github.com/pt-main/tycl/contract"
 	"github.com/pt-main/tycl/lang"
 	"github.com/pt-main/tycl/shared"
 )
 
-var Version = "1.1.0"
+var Version = "1.2.0"
 
-func Process(conf, cont string) (*shared.Config, error) {
+func Process(conf, cont string, strictKeys bool) (cfgs *shared.Config, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf(color.Set(err.Error()))
+		}
+		return
+	}()
 	contr := shared.NewNillContract()
 	if strings.TrimSpace(cont) != "" {
 		var err error
@@ -20,7 +27,7 @@ func Process(conf, cont string) (*shared.Config, error) {
 			return nil, err
 		}
 	}
-	cfg, err := lang.ParseConf(conf)
+	cfg, err := lang.ParseConf(conf, strictKeys)
 	if err != nil {
 		return nil, err
 	}

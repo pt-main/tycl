@@ -3,77 +3,39 @@ package lang
 import (
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/pt-main/lc/parsing/stringParsing"
 	"github.com/pt-main/lc/tooling/astools"
 	"github.com/pt-main/tap/color"
-	"github.com/pt-main/tycl/format"
 	"github.com/pt-main/tycl/lang/lcproc"
 	"github.com/pt-main/tycl/shared"
 )
 
-func ParseConf(code string) (*shared.Config, error) {
+func ParseConf(code string, strictKeys bool) (*shared.Config, error) {
 	p := lcproc.NewParser()
 	pn, err := p.Parse(code)
 	if err != nil {
 		return nil, err
 	}
-	return ParseBody(&pn[0])
-}
-
-func parseType(vtype, value string) (
-	boolv bool, intv int, floatv float64, stringv string, objectv *shared.Config, err error,
-) {
-	switch vtype {
-	case "string":
-		last := len(value) - 1
-		if len(value) >= 2 && value[0] == '\'' && value[last] == '\'' {
-			value = `"` + value[1:last] + `"`
-			value = strings.ReplaceAll(value, "\\'", "'")
-		}
-		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
-			value, err = strconv.Unquote(value)
-			if err == nil {
-				stringv = value
-				return
-			}
-		} else {
-			err = fmt.Errorf("Invalid string format")
-		}
-	case "int":
-		intv, err = strconv.Atoi(value)
-		if err == nil {
-			return
-		}
-	case "bool":
-		if slices.Contains([]string{"true", "false"}, value) {
-			boolv = false
-			if value == "true" {
-				boolv = true
-			}
-			return
-		}
-	case "float":
-		floatv, err = strconv.ParseFloat(value, 64)
-		if err == nil {
-			return
-		}
-	case "object":
-		var obj *shared.Config
-		obj, err = ParseConf(value)
-		if err == nil {
-			obj.Name = "inner"
-			objectv = obj
-			return
-		}
+	conf := shared.NewNilConfig()
+	cp := configParser{
+		Code:       code,
+		StrictKeys: strictKeys,
+		Node:       &pn[0],
+		Conf:       conf,
 	}
-	err = fmt.Errorf("Invalid value (type of %v): %v", vtype, value)
-	return
+	return cp.ParseBody()
 }
 
-func setValue(vtype, value, key string, valN *stringParsing.ParsedNode, conf *shared.Config) (err error) {
+type configParser struct {
+	Code       string
+	Conf       *shared.Config
+	StrictKeys bool
+	Node       *stringParsing.ParsedNode
+}
+
+func (cp *configParser) setValue(vtype, value, key string, valN *stringParsing.ParsedNode) (err error) {
 	if value == "null" {
 		switch vtype {
 		case "object":
@@ -83,48 +45,48 @@ func setValue(vtype, value, key string, valN *stringParsing.ParsedNode, conf *sh
 			err = fmt.Errorf("Invalid syntax: need type assertion if value is null")
 			return
 		default:
-			if _, ok := conf.NullV[key]; ok {
+			if _, ok := cp.Conf.NullV[key]; ok {
 				return fmt.Errorf("Can't add null value: key duplicate")
 			}
-			conf.NullV[key] = vtype
+			cp.Conf.NullV[key] = vtype
 			return
 		}
 	}
 	switch vtype {
-	case "string", "object", "int", "bool", "float":
-		boolv, intv, floatv, stringv, objectv, err := parseType(vtype, value)
+	case "string", "object", "int", "bool", "float", "action":
+		vtype, boolv, intv, floatv, stringv, objectv, err := cp.parseType(valN, vtype, value)
 		if err != nil {
 			return err
 		}
 		switch vtype {
 		case "string":
-			if _, ok := conf.StringV[key]; ok {
+			if _, ok := cp.Conf.StringV[key]; ok {
 				return fmt.Errorf("Can't add string: key is already added")
 			}
-			conf.StringV[key] = stringv
+			cp.Conf.StringV[key] = stringv
 		case "int":
-			if _, ok := conf.IntV[key]; ok {
+			if _, ok := cp.Conf.IntV[key]; ok {
 				return fmt.Errorf("Can't add int: key is already added")
 			}
-			conf.IntV[key] = intv
+			cp.Conf.IntV[key] = intv
 		case "bool":
-			if _, ok := conf.BoolV[key]; ok {
+			if _, ok := cp.Conf.BoolV[key]; ok {
 				return fmt.Errorf("Can't add bool: key is already added")
 			}
-			conf.BoolV[key] = boolv
+			cp.Conf.BoolV[key] = boolv
 		case "float":
-			if _, ok := conf.FloatV[key]; ok {
+			if _, ok := cp.Conf.FloatV[key]; ok {
 				return fmt.Errorf("Can't add float: key is already added")
 			}
-			conf.FloatV[key] = floatv
+			cp.Conf.FloatV[key] = floatv
 		case "object":
-			if _, ok := conf.InnerV[key]; ok {
+			if _, ok := cp.Conf.InnerV[key]; ok {
 				return fmt.Errorf("Can't add object: key is already added")
 			}
-			conf.InnerV[key] = objectv
+			cp.Conf.InnerV[key] = objectv
 		}
 	default:
-		err = setArray(vtype, key, valN, conf)
+		err = cp.setArray(vtype, key, valN)
 		if err != nil {
 			return err
 		}
@@ -132,67 +94,76 @@ func setValue(vtype, value, key string, valN *stringParsing.ParsedNode, conf *sh
 	return nil
 }
 
-func setArray(vtype, key string, valN *stringParsing.ParsedNode, conf *shared.Config) (err error) {
+func (cp *configParser) setArray(vtype, key string, valN *stringParsing.ParsedNode) (err error) {
 	startIdx := astools.FindChildIndex(valN, "LBRACK") + 1
 	finalIdx := astools.FindChildIndex(valN, "RBRACK")
 	eltype := vtype[:len(vtype)-1]
 	switch eltype {
 	case "strings":
-		conf.StringArrV[key] = make([]string, 0)
+		cp.Conf.StringArrV[key] = make([]string, 0)
 	case "ints":
-		conf.IntArrV[key] = make([]int, 0)
+		cp.Conf.IntArrV[key] = make([]int, 0)
 	case "floats":
-		conf.FloatArrV[key] = make([]float64, 0)
+		cp.Conf.FloatArrV[key] = make([]float64, 0)
 	case "bools":
-		conf.BoolArrV[key] = make([]bool, 0)
+		cp.Conf.BoolArrV[key] = make([]bool, 0)
 	case "objects":
-		conf.InnerArrV[key] = make([]*shared.Config, 0)
+		cp.Conf.InnerArrV[key] = make([]*shared.Config, 0)
 	}
 	for i := startIdx; i < finalIdx; i += 2 {
 		val := astools.GetChildAt(valN, i)
-		boolv, intv, floatv, stringv, objectv, err := parseType(eltype, val.Raw)
+		eltype, boolv, intv, floatv, stringv, objectv, err := cp.parseType(val, eltype, val.Raw)
 		if err != nil {
 			return err
 		}
 		switch eltype {
 		case "string":
-			conf.StringArrV[key] = append(conf.StringArrV[key], stringv)
+			cp.Conf.StringArrV[key] = append(cp.Conf.StringArrV[key], stringv)
 		case "int":
-			conf.IntArrV[key] = append(conf.IntArrV[key], intv)
+			cp.Conf.IntArrV[key] = append(cp.Conf.IntArrV[key], intv)
 		case "float":
-			conf.FloatArrV[key] = append(conf.FloatArrV[key], floatv)
+			cp.Conf.FloatArrV[key] = append(cp.Conf.FloatArrV[key], floatv)
 		case "bool":
-			conf.BoolArrV[key] = append(conf.BoolArrV[key], boolv)
+			cp.Conf.BoolArrV[key] = append(cp.Conf.BoolArrV[key], boolv)
 		case "object":
-			conf.InnerArrV[key] = append(conf.InnerArrV[key], objectv)
+			cp.Conf.InnerArrV[key] = append(cp.Conf.InnerArrV[key], objectv)
 		}
 	}
 	return
 }
 
-func ParseBody(pn *stringParsing.ParsedNode) (conf *shared.Config, err error) {
-	conf = shared.NewNilConfig()
+func (cp *configParser) ParseBody() (conf *shared.Config, err error) {
+	defer func() {
+		conf = cp.Conf
+	}()
 	pairs := astools.FindChildren(
 		astools.FindChild(
 			astools.FindChild(
-				pn, "config",
+				cp.Node, "config",
 			), "object",
 		), "pair",
 	)
+	keys := []string{}
 	for idx, pair := range pairs {
 		defer func() {
 			if err != nil {
-				conf, err2 := format.FormConfig(pn.Raw)
-				if err2 != nil {
-					conf = pn.Raw
-				}
 				err = fmt.Errorf(color.Set(
-					"[?RD]Code: [?RT]\n%v\n[?RD]Error in: [?RT]\n    %v: '%v': \n[?RD]%v[?RT]",
-				), conf, idx, pair.Raw, err)
+					"[?RD]Error in: [?RT]\n    %v: '%v': \n[?RD]%v[?RT]",
+				), idx, pair.Raw, err)
 			}
 			return
 		}()
 		key := astools.FindChild(&pair, "IDENT").Raw
+		if cp.StrictKeys {
+			if slices.Contains(keys, key) {
+				err = fmt.Errorf(
+					"Can't add key duplicate (with same or not same type): stcict keys mode enabled",
+				)
+				return
+			}
+			keys = append(keys, key)
+		}
+
 		valueNode := astools.GetChildAt(&pair, astools.FindChildIndex(&pair, "ASSIGN")+1)
 		vtype := (valueNode.Switch)
 		value := valueNode.Raw
@@ -204,11 +175,11 @@ func ParseBody(pn *stringParsing.ParsedNode) (conf *shared.Config, err error) {
 			}
 		}
 		vtype = strings.ToLower(vtype)
-		if !shared.IsTypeValid(vtype) {
+		if !shared.IsTypeValid(vtype) && vtype != "action" {
 			err = fmt.Errorf("Invalid value type: %v", vtype)
 			return
 		}
-		if err = setValue(vtype, value, key, valueNode, conf); err != nil {
+		if err = cp.setValue(vtype, value, key, valueNode); err != nil {
 			return
 		}
 	}

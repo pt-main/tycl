@@ -12,8 +12,8 @@ func NewLexer() *stringParsing.Lexer {
 		{Type: "STRING", Pattern: regexp2.MustCompile(`'(?:\\.|[^'\\])*'`, 0)},
 		// {Type: "LITERAL", Pattern: regexp2.MustCompile("(?s)`"+`(?:\\.|[^`+"`"+`\\])*`+"`", 0)},
 		{Type: "COMMENT", Pattern: regexp2.MustCompile(`(?s)/\*(?<value>.*?)\*/`, 0)},
-		{Type: "FLOAT", Pattern: regexp2.MustCompile(`\d+\.\d+`, 0)},
-		{Type: "INT", Pattern: regexp2.MustCompile(`\d+`, 0)},
+		{Type: "FLOAT", Pattern: regexp2.MustCompile(`-?\d+\.\d+`, 0)},
+		{Type: "INT", Pattern: regexp2.MustCompile(`-?\d+`, 0)},
 		{Type: "BOOL", Pattern: regexp2.MustCompile(`true|false`, 0)},
 		{Type: "NULL", Pattern: regexp2.MustCompile(`null`, 0)},
 		{Type: "IDENT", Pattern: regexp2.MustCompile(`[a-zA-Z_][a-zA-Z0-9_\-]*`, 0)},
@@ -23,6 +23,8 @@ func NewLexer() *stringParsing.Lexer {
 		{Type: "RBRACE", Pattern: regexp2.MustCompile(`\}`, 0)},
 		{Type: "LBRACK", Pattern: regexp2.MustCompile(`\[`, 0)},
 		{Type: "RBRACK", Pattern: regexp2.MustCompile(`\]`, 0)},
+		{Type: "LPAREN", Pattern: regexp2.MustCompile(`\(`, 0)},
+		{Type: "RPAREN", Pattern: regexp2.MustCompile(`\)`, 0)},
 		{Type: "SEPARATOR", Pattern: regexp2.MustCompile(`,`, 0)},
 
 		{Type: "WHITESPACE", Pattern: regexp2.MustCompile(`\s+`, 0)},
@@ -133,6 +135,7 @@ func createGrammar() parser3.Grammar {
 			Name: "value",
 			Expr: parser3.ChoiceExpr{
 				Alternatives: []parser3.Expr{
+					parser3.NamedExpr{RuleName: "action"},
 					parser3.NamedExpr{RuleName: "object"},
 					parser3.NamedExpr{RuleName: "array"},
 					parser3.TokenExpr{TokenType: "STRING"},
@@ -140,6 +143,38 @@ func createGrammar() parser3.Grammar {
 					parser3.TokenExpr{TokenType: "INT"},
 					parser3.TokenExpr{TokenType: "FLOAT"},
 					parser3.TokenExpr{TokenType: "BOOL"},
+				},
+			},
+		},
+
+		"action": {
+			Name: "action",
+			Expr: parser3.NodeExpr{
+				NodeType: "action",
+				Expr: parser3.SequenceExpr{
+					Exprs: []parser3.Expr{
+						parser3.TokenExpr{TokenType: "IDENT"},
+						parser3.TokenExpr{TokenType: "LPAREN"},
+						parser3.OptionalExpr{
+							Expr: parser3.TokenExpr{TokenType: "COMMENT"},
+						},
+						parser3.RepeatExpr{
+							Expr: parser3.SequenceExpr{
+								Exprs: []parser3.Expr{
+									parser3.NamedExpr{RuleName: "value"},
+									parser3.TokenExpr{TokenType: "SEPARATOR"},
+								},
+							},
+							Min: 0,
+						},
+						parser3.OptionalExpr{
+							Expr: parser3.NamedExpr{RuleName: "value"},
+						},
+						parser3.OptionalExpr{
+							Expr: parser3.TokenExpr{TokenType: "COMMENT"},
+						},
+						parser3.TokenExpr{TokenType: "RPAREN"},
+					},
 				},
 			},
 		},

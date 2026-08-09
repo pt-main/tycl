@@ -15,25 +15,59 @@ func CheckContract(conf *shared.Config, cont *shared.Contract) error {
 		return nil
 	}
 
+	hasScalarKey := func(key, typ string) bool {
+		switch typ {
+		case "int":
+			if _, ok := conf.IntV[key]; ok {
+				return true
+			}
+			if t, ok := conf.NullV[key]; ok && t == "int" {
+				return true
+			}
+		case "float":
+			if _, ok := conf.FloatV[key]; ok {
+				return true
+			}
+			if t, ok := conf.NullV[key]; ok && t == "float" {
+				return true
+			}
+		case "string":
+			if _, ok := conf.StringV[key]; ok {
+				return true
+			}
+			if t, ok := conf.NullV[key]; ok && t == "string" {
+				return true
+			}
+		case "bool":
+			if _, ok := conf.BoolV[key]; ok {
+				return true
+			}
+			if t, ok := conf.NullV[key]; ok && t == "bool" {
+				return true
+			}
+		}
+		return false
+	}
+
 	var errs []string
 
-	for _, key := range cont.BoolV {
-		if _, ok := conf.BoolV[key]; !ok {
-			errs = append(errs, fmt.Sprintf("required bool key %q not found", key))
-		}
-	}
 	for _, key := range cont.IntV {
-		if _, ok := conf.IntV[key]; !ok {
+		if !hasScalarKey(key, "int") {
 			errs = append(errs, fmt.Sprintf("required int key %q not found", key))
 		}
 	}
 	for _, key := range cont.FloatV {
-		if _, ok := conf.FloatV[key]; !ok {
+		if !hasScalarKey(key, "float") {
 			errs = append(errs, fmt.Sprintf("required float key %q not found", key))
 		}
 	}
+	for _, key := range cont.BoolV {
+		if !hasScalarKey(key, "bool") {
+			errs = append(errs, fmt.Sprintf("required bool key %q not found", key))
+		}
+	}
 	for _, key := range cont.StringV {
-		if _, ok := conf.StringV[key]; !ok {
+		if !hasScalarKey(key, "string") {
 			errs = append(errs, fmt.Sprintf("required string key %q not found", key))
 		}
 	}
@@ -151,6 +185,7 @@ func CheckContract(conf *shared.Config, cont *shared.Contract) error {
 			errs = append(errs, fmt.Sprintf("extra string key %q not allowed in strict contract", key))
 		}
 	}
+
 	for key := range conf.BoolArrV {
 		if !contBoolArrSet[key] {
 			errs = append(errs, fmt.Sprintf("extra bool array key %q not allowed in strict contract", key))
@@ -171,6 +206,7 @@ func CheckContract(conf *shared.Config, cont *shared.Contract) error {
 			errs = append(errs, fmt.Sprintf("extra string array key %q not allowed in strict contract", key))
 		}
 	}
+
 	for key := range conf.InnerV {
 		if !contInnerSet[key] {
 			errs = append(errs, fmt.Sprintf("extra inner object key %q not allowed in strict contract", key))

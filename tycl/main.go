@@ -14,7 +14,12 @@ func NewCli() *tap.Parser {
 [?YW]⎬─ [?BBK]Version: %v
 [?YW]│  [?BBK]Cli for validating and formatting.
 [?YW]│  [?BBK][?BD]Humanmade[?RT][?BBK], By [?UE]Pt[?RT]
-[?YW]╰───────[?RT]`, tycl.Version),
+[?YW]╰───────[?RT]
+
+[?BBK]╭───────Info:
+⎬─ Flags:
+│    [--strict-keys] - enable strict keys mode
+╰───────[?RT]`, tycl.Version),
 		[]string{"help"},
 		tap.DefaultParserConfig(),
 	)
@@ -23,7 +28,7 @@ func NewCli() *tap.Parser {
 		`[?GN]Validate a config file against a contract.[?RT]
 
 [?BBE]Usage:[?RT]
-    tycl valid <config-file> [contract-file]
+    tycl valid <config-file> [contract-file] [--strict-keys]
 
 [?BBE]Arguments:[?RT]
     config-file    Path to the config file (required)
@@ -41,7 +46,7 @@ func NewCli() *tap.Parser {
 		`[?GN]Check syntax and types for multiple files (no strict contract).[?RT]
 
 [?BBE]Usage:[?RT]
-    tycl syntax <file1> [file2] ...
+    tycl syntax <file1> [file2] ... [--strict-keys]
 
 [?BBE]Arguments:[?RT]
     files  List of config files to check (at least one)
@@ -79,7 +84,7 @@ func NewCli() *tap.Parser {
 		`[?GN]Generate JSON, YAML, or TOML from a TYCL config file.[?RT]
 
 [?BBE]Usage:[?RT]
-    tycl gen <input-file> <output-file> <type>
+    tycl gen <input-file> <output-file> <type> [--strict-keys]
 
 [?BBE]Arguments:[?RT]
     input-file   Path to the TYCL config file (required)
@@ -99,7 +104,7 @@ func NewCli() *tap.Parser {
 		`[?GN]Generate contract from tycl file.[?RT]
 
 [?BBE]Usage:[?RT]
-    tycl contact <input-config> <output-contract> <type>
+    tycl contact <input-config> <output-contract> <type> [--strict-keys]
 
 [?BBE]Arguments:[?RT]
     input-file   Path to the TYCL config file (required)

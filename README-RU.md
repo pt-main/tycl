@@ -60,6 +60,9 @@ go install github.com/pt-main/tycl/tycl@latest
 - `tycl syntax <file...>` — проверка синтаксиса и типов (без контракта).
 - `tycl fmt <type> <file...>` — форматирование (`conf` / `contract`).
 - `tycl gen <input> <output> <json|yaml|toml>` — генерация целевого формата.
+- `tycl contract <input> <output> <type>` — генерация контракта из конфига.
+
+Все команды поддерживают флаг `--strict-keys` — запрещает дублирование ключей (с любыми типами) в пределах одного объекта.
 
 ---
 
@@ -135,32 +138,77 @@ app: object = {
 Поддерживаются **только блочные комментарии** `/* ... */`, и они могут располагаться строго **в начале или в конце блока** (объекта или массива). Это делает комментарии документацией к блоку.
 
 ```tycl
-/* Этот объект описывает сервер */
 server: object = {
+    /* Этот объект описывает сервер */
     host: string = "127.0.0.1"
     port: int = 8080
-} /* Конец описания сервера */
+    /* Конец описания сервера */
+}
 ```
 
 Однострочные комментарии (`//`) **не поддерживаются**.
+
+### Экшены (Actions)
+
+TYCL поддерживает вызов функций прямо в значениях. Экшены позволяют читать файлы, подставлять переменные окружения, преобразовывать типы и объединять строки.
+
+**Синтаксис:** `имя_экшена(аргументы)`
+
+**Доступные экшены:**
+
+| Экшен | Описание | Пример |
+|-------|----------|--------|
+| `file("path")` | Читает содержимое файла как строку | `data: string = file("config.json")` |
+| `env("VAR", "default", "type")` | Получает переменную окружения (с типом) | `port: int = env("PORT", "8080", "int")` |
+| `join(...)` | Объединяет строки | `name: string = join("auth", "-", "service")` |
+| `asString(value)` | Преобразует значение в строку | `debug: string = asString({ debug: bool = true })` |
+| `asObject(string)` | Преобразует строку (содержащую TYCL-код) в объект | `db: object = asObject(file("db.tycl"))` |
+
+**Пример с экшенами:**
+
+```tycl
+database: object = asObject(
+    file("database.tycl")
+)
+
+server: object = {
+    host: string = env("SERVER_HOST", "'localhost'", "string"),
+    port: int = env("SERVER_PORT", "8080", "int")
+}
+
+log: object = {
+    level: string = env("LOG_LEVEL", "'info'", "string"),
+    file: string = env("LOG_FILE", "'app.log'", "string")
+}
+
+modules: strings = [
+    join("auth", "-", "service"),
+    join("user", "-", "api"),
+    join("admin", "-", "ui")
+]
+
+debug: string = asString(
+    { debug_mode: bool = true }
+)
+```
 
 ### Важные правила
 
 1. **Необязательность типов в ключах**  
    Если тип не указан, он выводится из значения:  
-   `key = "text"` ->`string`, `key = 42` -> `int`.  
+   `key = "text"` → `string`, `key = 42` → `int`.  
    **Исключение:** для массивов тип **обязателен** (`ints`, `strings` и т.д.).
 
 2. **Дублирование ключей с разными типами**  
    Разрешено, но **не рекомендуется**, потому что при генерации в JSON/YAML/TOML конфликт приведёт к ошибке.  
-   Пример:  
    ```tycl
    port: int = 8080
    port: string = "8080"   /* допустимо, но плохая практика */
    ```
+   Чтобы запретить дублирование ключей, используйте флаг `--strict-keys` в cli (в документации cli явно указано где это допустимо).
 
 3. **Null**  
-   Может быть только один ключ с данным именем, если он равен `null` (независимо от типа).  
+   Может быть только один ключ с данным именем, если он равен `null` (независимо от типа).
    ```tycl
    timeout: int = null     /* ок */
    timeout: string = null  /* ошибка: уже есть null для timeout */
@@ -211,10 +259,12 @@ import "github.com/pt-main/tycl/generation"
 jsonStr, err := generation.Json(cfg)
 yamlStr, err := generation.Yaml(cfg)
 tomlStr, err := generation.Toml(cfg)
-tyclStr, err := generation.Tycl(cfg)   // обратно в TYCL
+tyclStr, err := generation.Tycl(cfg)    // обратно в TYCL
 ```
 
 Это полезно, если вы загрузили конфиг, изменили его в коде и хотите сохранить в другом формате.
+
+Важно: для генерации TOML в конфиге обязаны отсутствовать null значения (из за ограничений TOML).
 
 ---
 
@@ -227,11 +277,14 @@ strict {
     port: int
     host: string
     debug: bool
-    timeout: int         
+    timeout: int
     ports: ints
     server: object = strict {
         host: string
         port: int
+    }
+    test1: objects = flexible {
+        key: string
     }
 }
 ```
@@ -242,7 +295,7 @@ strict {
 - `flexible` — все перечисленные поля должны присутствовать, лишние разрешены.
 - `strict` — точное соответствие (нельзя добавлять лишние поля).
 
-Контракты могут быть вложенными для объектов. Для массивов объектов контракт не поддерживается — проверяется только наличие ключа.
+Контракты поддерживают вложенность для объектов и **массивов объектов** (как показано в примере для `test1`). Для массивов объектов контракт применяется к каждому элементу массива.
 
 ---
 
@@ -260,42 +313,71 @@ tycl gen config.tycl out.toml toml
 
 ---
 
+## Генерация контрактов
+
+TYCL умеет автоматически генерировать контракты из существующих конфигов:
+
+```bash
+tycl contract config.tycl contract.tycl strict
+```
+
+Это полезно, когда у вас уже есть конфиг, и вы хотите создать схему для валидации будущих изменений.
+
+---
+
 ## Интеграция в Go (полный пример)
 
 ```go
 package main
 
 import (
-    "fmt"
-    "log"
-    "github.com/pt-main/tycl"
-    "github.com/pt-main/tycl/generation"
+	"fmt"
+	"log"
+
+	"github.com/pt-main/tycl"
+	"github.com/pt-main/tycl/generation"
+	"github.com/pt-main/tycl/shared"
 )
 
 func main() {
-    conf := `{
-        port: int = 8080
-        host: string = "localhost"
-        timeout: int = null
-    }`
+	conf := `
+{
+    port: int = 8080,
+    host: string = "localhost",
+    timeout: int = -1,
+    test1: objects = [
+        { key: string = "a" },
+        { key: string = "b" }
+    ]
+}`
 
-    contract := `strict {
-        port: int
-        host: string
-        timeout: int
-    }`
-
-    cfg, err := tycl.Process(conf, contract)
-    if err != nil {
-        log.Fatal(err)
+	contract := `
+strict {
+    port: int,
+    host: string,
+    timeout: int,
+    test1: objects = flexible {
+        key: string
     }
+}`
 
-    fmt.Println(cfg.IntV["port"])      // 8080
-    fmt.Println(cfg.StringV["host"])   // "localhost"
+	cfg, err := tycl.Process(conf, contract, false)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    // Экспорт в JSON
-    jsonData, _ := generation.Json(cfg)
-    fmt.Println(jsonData)
+	fmt.Println(cfg.IntV["port"])    // 8080
+	fmt.Println(cfg.StringV["host"]) // "localhost"
+
+	// Экспорт в JSON
+	fmt.Println(generation.Json(cfg))
+	// Экспорт в TOML
+	fmt.Println(generation.Toml(cfg))
+
+	// Генерация контракта из конфига
+	cont, _ := generation.ContractFromConfig(cfg, shared.ContractStrict)
+	contCode, _ := generation.GenerateContractCode(cont)
+	fmt.Println(contCode)
 }
 ```
 

@@ -106,5 +106,13 @@ func toTOMLObject(conf *shared.Config) (map[string]interface{}, error) {
 		}
 	}
 
+	errs := []string{}
+	for key, value := range conf.NullV {
+		errs = append(errs, fmt.Sprintf("Can't add '%v' (type of %v): toml has no null values support", key, value))
+	}
+	if len(errs) > 0 {
+		return obj, fmt.Errorf("Toml generating: \n%v", strings.Join(errs, "\n- "))
+	}
+
 	return obj, nil
 }

@@ -112,7 +112,7 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 				}
 
 				if ctype == "array" {
-					if len(child.Raw) <= 30 {
+					if len(child.Raw) <= 50 {
 						res += child.Raw
 					} else {
 						children := astools.GetChildren(&child)
@@ -129,10 +129,14 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 								res += tab + achild.Raw
 								continue
 							}
-							// form any value, objects will be formed automaticly
-							child, err := form(achild.Raw)
-							if err != nil {
-								return "", err
+							// form object value, objects will be formed automaticly
+							child := achild.Raw
+							var err error
+							if achild.Switch == "object" {
+								child, err = form(achild.Raw)
+								if err != nil {
+									return "", err
+								}
 							}
 							// add tabs to lines
 							res += tab + tab + strings.Join(strings.Split(child, "\n"), "\n"+tab+tab)
