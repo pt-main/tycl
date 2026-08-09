@@ -39,7 +39,7 @@ Use it in your code:
 ```go
 import "github.com/pt-main/tycl"
 
-cfg, err := tycl.Process(`{ port: int = 8080 }`, `strict { port: int }`, false)
+cfg, err := tycl.Process(`{ port: int = 8080 }`, `strict { port: int }`)
 if err != nil {
     log.Fatal(err)
 }
@@ -62,7 +62,7 @@ Commands:
 - `tycl gen <input> <output> <json|yaml|toml>` — generate a target format.
 - `tycl contract <input> <output> <type>` — generate a contract from a config.
 
-All commands support the `--strict-keys` flag — it disallows duplicate keys (of any type) within the same object.
+All commands support the `--strict-keys` flag — it forbids duplicate keys (of any type) within the same object.
 
 ---
 
@@ -73,10 +73,10 @@ TYCL is close to JSON, but every field has an explicit type.
 ### Basic types
 
 ```tycl
-port: int = 8080
-rate: float = 1.5
-debug: bool = true
-host: string = "localhost"
+port: int = 8080,
+rate: float = 1.5,
+debug: bool = true,
+host: string = "localhost",
 ```
 
 ### Null values
@@ -99,10 +99,10 @@ timeout: int = null   /* field timeout exists but is null, type int */
 Arrays are strictly typed and denoted by the **type in plural form**. The array type is **mandatory**:
 
 ```tycl
-ports: ints = [8080, 8081]
-names: strings = ["dev", "prod"]
-rates: floats = [1.1, 2.2]
-flags: bools = [true, false]
+ports: ints = [8080, 8081],
+names: strings = ["dev", "prod"],
+rates: floats = [1.1, 2.2],
+flags: bools = [true, false],
 servers: objects = [
     { host: string = "a", port: int = 80 },
     { host: string = "b", port: int = 443 }
@@ -115,9 +115,9 @@ All elements of an array must have the same type.
 
 ```tycl
 server: object = {
-    host: string = "127.0.0.1"
-    port: int = 8080
-    timeout: int = null
+    host: string = "127.0.0.1",
+    port: int = 8080,
+    timeout: int = null,
 }
 ```
 
@@ -125,9 +125,9 @@ Objects can be nested arbitrarily:
 
 ```tycl
 app: object = {
-    name: string = "myapp"
+    name: string = "myapp",
     database: object = {
-        host: string = "localhost"
+        host: string = "localhost",
         port: int = 5432
     }
 }
@@ -135,13 +135,13 @@ app: object = {
 
 ### Comments
 
-Only **block comments** `/* ... */` are supported, and they may be placed inside blocks as well (not just at the beginning or end). This makes comments act as inline documentation.
+Only **block comments** `/* ... */` are supported, and they may be placed **only at the beginning or at the end of a block** (object or array). This makes comments act as documentation for the block.
 
 ```tycl
 server: object = {
     /* This object describes the server */
-    host: string = "127.0.0.1"
-    port: int = 8080
+    host: string = "127.0.0.1",
+    port: int = 8080,
     /* End of server description */
 }
 ```
@@ -150,7 +150,7 @@ Line comments (`//`) are **not supported**.
 
 ### Actions
 
-TYCL supports calling functions directly in values. Actions allow you to read files, substitute environment variables, transform types, and join strings.
+TYCL supports calling functions directly in values. Actions allow you to read files, substitute environment variables, convert types, and join strings.
 
 **Syntax:** `action_name(arguments)`
 
@@ -162,30 +162,30 @@ TYCL supports calling functions directly in values. Actions allow you to read fi
 | `env("VAR", "default", "type")` | Gets an environment variable (with type) | `port: int = env("PORT", "8080", "int")` |
 | `join(...)` | Concatenates strings | `name: string = join("auth", "-", "service")` |
 | `asString(value)` | Converts a value to a string | `debug: string = asString({ debug: bool = true })` |
-| `asObject(string)` | Converts a string (containing TYCL code) into an object | `db: object = asObject(file("db.tycl"))` |
+| `asObject(string)` | Converts a string (containing TYCL code) to an object | `db: object = asObject(file("db.tycl"))` |
 
 **Example with actions:**
 
 ```tycl
 database: object = asObject(
     file("database.tycl")
-)
+),
 
 server: object = {
     host: string = env("SERVER_HOST", "'localhost'", "string"),
     port: int = env("SERVER_PORT", "8080", "int")
-}
+},
 
 log: object = {
     level: string = env("LOG_LEVEL", "'info'", "string"),
     file: string = env("LOG_FILE", "'app.log'", "string")
-}
+},
 
 modules: strings = [
     join("auth", "-", "service"),
     join("user", "-", "api"),
     join("admin", "-", "ui")
-]
+],
 
 debug: string = asString(
     { debug_mode: bool = true }
@@ -202,18 +202,20 @@ debug: string = asString(
 2. **Duplicate keys with different types**  
    Allowed, but **not recommended**, because when generating JSON/YAML/TOML, a conflict will cause an error.  
    ```tycl
-   port: int = 8080
+   port: int = 8080,
    port: string = "8080"   /* allowed, but bad practice */
    ```
-   To disallow duplicate keys entirely, use the `--strict-keys` flag in the CLI (the CLI documentation states where it is applicable).
+   To forbid duplicate keys, use the `--strict-keys` flag in the CLI (the CLI documentation clearly states where this is allowed).
 
 3. **Null**  
    There can be only one key with a given name if it equals `null` (regardless of type).
    ```tycl
-   timeout: int = null     /* ok */
-   timeout: string = null  /* error: null already exists for timeout */
-   timeout: string = "5s"  /* ok, this is not null */
+   timeout: int = null,     /* ok */
+   timeout: string = null,  /* error: null already exists for timeout */
+   timeout: string = "5s"   /* ok, this is not null */
    ```
+
+The strict keys feature (available in the CLI and `tycl.Process`) forbids rules 2 and 3, making all keys unique.
 
 ---
 
@@ -227,24 +229,24 @@ type Config struct {
     FloatV  map[string]float64
     BoolV   map[string]bool
     StringV map[string]string
-    NullV   map[string]string   // key → type of null value
+    NullV   map[string]string           // key → type of null value
 
     IntArrV    map[string][]int
     FloatArrV  map[string][]float64
     BoolArrV   map[string][]bool
     StringArrV map[string][]string
 
-    InnerV    map[string]*Config       // objects
-    InnerArrV map[string][]*Config     // arrays of objects
+    InnerV    map[string]*Config        // objects
+    InnerArrV map[string][]*Config      // arrays of objects
 }
 ```
 
 Example access:
 
 ```go
-cfg, _ := tycl.Process(`{ port: int = 8080, host: string = "localhost" }`, "", false)
-port := cfg.IntV["port"]       // 8080 (int)
-host := cfg.StringV["host"]    // "localhost" (string)
+cfg, _ := tycl.Process(`{ port: int = 8080, host: string = "localhost" }`, "")
+port := cfg.IntV["port"]        // 8080 (int)
+host := cfg.StringV["host"]     // "localhost" (string)
 ```
 
 ---
@@ -259,12 +261,12 @@ import "github.com/pt-main/tycl/generation"
 jsonStr, err := generation.Json(cfg)
 yamlStr, err := generation.Yaml(cfg)
 tomlStr, err := generation.Toml(cfg)
-tyclStr, err := generation.Tycl(cfg)    // back to TYCL
+tyclStr, err := generation.Tycl(cfg)        // back to TYCL
 ```
 
 This is useful when you load a config, modify it in code, and want to save it in another format.
 
-**Important:** for TOML generation, the config must not contain any `null` values (due to TOML's limitations).
+Important: for TOML generation, the config must have no null values (due to TOML's limitations).
 
 ---
 
@@ -274,15 +276,15 @@ A contract describes the expected structure of a config. It is written in the sa
 
 ```tycl
 strict {
-    port: int
-    host: string
-    debug: bool
-    timeout: int
-    ports: ints
+    port: int,
+    host: string,
+    debug: bool,
+    timeout: int,
+    ports: ints,
     server: object = strict {
-        host: string
+        host: string,
         port: int
-    }
+    },
     test1: objects = flexible {
         key: string
     }
@@ -361,13 +363,13 @@ strict {
     }
 }`
 
-	cfg, err := tycl.Process(conf, contract, false)
+	cfg, err := tycl.Process(conf, contract, false) // strictKeys=false
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(cfg.IntV["port"])    // 8080
-	fmt.Println(cfg.StringV["host"]) // "localhost"
+	fmt.Println(cfg.IntV["port"])       // 8080
+	fmt.Println(cfg.StringV["host"])    // "localhost"
 
 	// Export to JSON
 	fmt.Println(generation.Json(cfg))
@@ -387,7 +389,7 @@ If you do not need a contract, pass `""` or `"dynamic{}"` — validation will be
 
 ## Future plans
 
-- **VS Code plugin:** syntax highlighting, autocompletion, formatting, live contract checking.
+- **VS Code plugin:** syntax highlighting, autocompletion, formatting.
 
 ---
 

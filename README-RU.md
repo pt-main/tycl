@@ -73,10 +73,10 @@ TYCL близок к JSON, но каждое поле имеет явный ти
 ### Базовые типы
 
 ```tycl
-port: int = 8080
-rate: float = 1.5
-debug: bool = true
-host: string = "localhost"
+port: int = 8080,
+rate: float = 1.5,
+debug: bool = true,
+host: string = "localhost",
 ```
 
 ### Null‑значения
@@ -99,10 +99,10 @@ timeout: int = null   /* поле timeout существует, но равно 
 Массивы строго типизированы и обозначаются **типом во множественном числе**. Тип массива **обязателен**:
 
 ```tycl
-ports: ints = [8080, 8081]
-names: strings = ["dev", "prod"]
-rates: floats = [1.1, 2.2]
-flags: bools = [true, false]
+ports: ints = [8080, 8081],
+names: strings = ["dev", "prod"],
+rates: floats = [1.1, 2.2],
+flags: bools = [true, false],
 servers: objects = [
     { host: string = "a", port: int = 80 },
     { host: string = "b", port: int = 443 }
@@ -115,9 +115,9 @@ servers: objects = [
 
 ```tycl
 server: object = {
-    host: string = "127.0.0.1"
-    port: int = 8080
-    timeout: int = null
+    host: string = "127.0.0.1",
+    port: int = 8080,
+    timeout: int = null,
 }
 ```
 
@@ -125,9 +125,9 @@ server: object = {
 
 ```tycl
 app: object = {
-    name: string = "myapp"
+    name: string = "myapp",
     database: object = {
-        host: string = "localhost"
+        host: string = "localhost",
         port: int = 5432
     }
 }
@@ -140,8 +140,8 @@ app: object = {
 ```tycl
 server: object = {
     /* Этот объект описывает сервер */
-    host: string = "127.0.0.1"
-    port: int = 8080
+    host: string = "127.0.0.1",
+    port: int = 8080,
     /* Конец описания сервера */
 }
 ```
@@ -169,23 +169,23 @@ TYCL поддерживает вызов функций прямо в значе
 ```tycl
 database: object = asObject(
     file("database.tycl")
-)
+),
 
 server: object = {
     host: string = env("SERVER_HOST", "'localhost'", "string"),
     port: int = env("SERVER_PORT", "8080", "int")
-}
+},
 
 log: object = {
     level: string = env("LOG_LEVEL", "'info'", "string"),
     file: string = env("LOG_FILE", "'app.log'", "string")
-}
+},
 
 modules: strings = [
     join("auth", "-", "service"),
     join("user", "-", "api"),
     join("admin", "-", "ui")
-]
+],
 
 debug: string = asString(
     { debug_mode: bool = true }
@@ -202,7 +202,7 @@ debug: string = asString(
 2. **Дублирование ключей с разными типами**  
    Разрешено, но **не рекомендуется**, потому что при генерации в JSON/YAML/TOML конфликт приведёт к ошибке.  
    ```tycl
-   port: int = 8080
+   port: int = 8080,
    port: string = "8080"   /* допустимо, но плохая практика */
    ```
    Чтобы запретить дублирование ключей, используйте флаг `--strict-keys` в cli (в документации cli явно указано где это допустимо).
@@ -210,10 +210,12 @@ debug: string = asString(
 3. **Null**  
    Может быть только один ключ с данным именем, если он равен `null` (независимо от типа).
    ```tycl
-   timeout: int = null     /* ок */
-   timeout: string = null  /* ошибка: уже есть null для timeout */
+   timeout: int = null,     /* ок */
+   timeout: string = null,  /* ошибка: уже есть null для timeout */
    timeout: string = "5s"  /* ок, это не null */
    ```
+
+Функция strict keys (работающая в cli/tycl.Process) запрещает правила 2 и 3, делая все ключи уникальными. 
 
 ---
 
@@ -227,15 +229,15 @@ type Config struct {
     FloatV  map[string]float64
     BoolV   map[string]bool
     StringV map[string]string
-    NullV   map[string]string   // ключ → тип null-значения
+    NullV   map[string]string           // ключ → тип null-значения
 
     IntArrV    map[string][]int
     FloatArrV  map[string][]float64
     BoolArrV   map[string][]bool
     StringArrV map[string][]string
 
-    InnerV    map[string]*Config       // объекты
-    InnerArrV map[string][]*Config     // массивы объектов
+    InnerV    map[string]*Config        // объекты
+    InnerArrV map[string][]*Config      // массивы объектов
 }
 ```
 
@@ -243,8 +245,8 @@ type Config struct {
 
 ```go
 cfg, _ := tycl.Process(`{ port: int = 8080, host: string = "localhost" }`, "")
-port := cfg.IntV["port"]       // 8080 (int)
-host := cfg.StringV["host"]    // "localhost" (string)
+port := cfg.IntV["port"]        // 8080 (int)
+host := cfg.StringV["host"]     // "localhost" (string)
 ```
 
 ---
@@ -259,7 +261,7 @@ import "github.com/pt-main/tycl/generation"
 jsonStr, err := generation.Json(cfg)
 yamlStr, err := generation.Yaml(cfg)
 tomlStr, err := generation.Toml(cfg)
-tyclStr, err := generation.Tycl(cfg)    // обратно в TYCL
+tyclStr, err := generation.Tycl(cfg)        // обратно в TYCL
 ```
 
 Это полезно, если вы загрузили конфиг, изменили его в коде и хотите сохранить в другом формате.
@@ -274,15 +276,15 @@ tyclStr, err := generation.Tycl(cfg)    // обратно в TYCL
 
 ```tycl
 strict {
-    port: int
-    host: string
-    debug: bool
-    timeout: int
-    ports: ints
+    port: int,
+    host: string,
+    debug: bool,
+    timeout: int,
+    ports: ints,
     server: object = strict {
-        host: string
+        host: string,
         port: int
-    }
+    },
     test1: objects = flexible {
         key: string
     }
@@ -361,13 +363,13 @@ strict {
     }
 }`
 
-	cfg, err := tycl.Process(conf, contract, false)
+	cfg, err := tycl.Process(conf, contract, false) // strictKeys=false
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(cfg.IntV["port"])    // 8080
-	fmt.Println(cfg.StringV["host"]) // "localhost"
+	fmt.Println(cfg.IntV["port"])       // 8080
+	fmt.Println(cfg.StringV["host"])    // "localhost"
 
 	// Экспорт в JSON
 	fmt.Println(generation.Json(cfg))
@@ -387,7 +389,7 @@ strict {
 
 ## Планы на будущее
 
-- **Плагин для VS Code:** подсветка синтаксиса, автодополнение, форматирование, проверка контрактов на лету.
+- **Плагин для VS Code:** подсветка синтаксиса, автодополнение, форматирование.
 
 ---
 
