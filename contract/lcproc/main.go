@@ -96,7 +96,5 @@ func createGrammar() parser3.Grammar {
 func NewParser() *parser3.Parser {
 	return parser3.NewParser(NewLexer(), createGrammar(), "config", []string{
 		"WHITESPACE",
-		"COMMENT_LINE",
-		"COMMENT_BLOCK",
 	})
 }
