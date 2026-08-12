@@ -10,6 +10,7 @@ import (
 	"github.com/pt-main/tap/color"
 	"github.com/pt-main/tycl/contract/lcproc"
 	"github.com/pt-main/tycl/shared"
+	"github.com/pt-main/tycl/utils"
 )
 
 func ParseContract(code string) (*shared.Contract, error) {
@@ -75,17 +76,16 @@ func processPair(vtype, key, value string, con *shared.Contract, valueNode *stri
 
 func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err error) {
 	con = shared.NewNillContract()
-	pairs := astools.FindChildren(
-		astools.FindChild(
-			astools.FindChild(
-				pn, "config",
-			), "object",
-		), "pair",
-	)
 	obj := astools.FindChild(
 		astools.FindChild(
 			pn, "config",
 		), "object",
+	)
+	pairs := astools.FindChildren(
+		obj, "pair",
+	)
+	comments := astools.FindChildren(
+		obj, "COMMENT",
 	)
 	ctr := astools.FindChild(obj, "CONTRACT").Raw
 	switch ctr {
@@ -110,7 +110,7 @@ func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err error) {
 		typeNode := astools.GetChildAt(&pair, colonAssign+1)
 		vtype := typeNode.Raw
 		vtype = strings.ToLower(vtype)
-		if !shared.IsTypeValid(vtype) {
+		if !utils.IsTypeValid(vtype) {
 			err = fmt.Errorf("Invalid type: %v", vtype)
 			return
 		}
@@ -131,6 +131,13 @@ func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err error) {
 		}
 		if err = processPair(vtype, key, value, con, valueNode); err != nil {
 			return
+		}
+	}
+
+	for _, comm := range comments {
+		comment := comm.Metadata["value"].(string)
+		for _, line := range strings.Split(comment, "\n") {
+			con.Comments = append(con.Comments, line)
 		}
 	}
 	return

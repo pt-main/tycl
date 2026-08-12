@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/pt-main/tycl/format"
-	"github.com/pt-main/tycl/lang"
 	"github.com/pt-main/tycl/shared"
+	"github.com/pt-main/tycl/utils"
 )
 
 func Tycl(conf *shared.Config) (string, error) {
@@ -57,7 +57,7 @@ func tyclRaw(conf *shared.Config) (string, error) {
 			return "", fmt.Errorf("invalid bool value: %v", value)
 		case "string":
 			if v, ok := value.(string); ok {
-				return lang.ReprStringValue(v), nil
+				return utils.ReprStringValue(v), nil
 			}
 			return "", fmt.Errorf("invalid string value: %v", value)
 		case "null":

@@ -1,0 +1,12 @@
+flexible {
+    test2: object = flexible {
+        test: int,
+        key: string,
+    },
+    test: object = flexible {
+        key: string,
+    },
+    test1: objects = flexible {
+        key: string,
+    }, // test
+}

@@ -61,9 +61,8 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 		if len(valSplit) == 1 {
 			res += value + "*/" + "\n"
 			return
-		} else {
-			res += "\n"
 		}
+		res += "\n"
 		for idx, line := range valSplit {
 			trimLine := strings.TrimSpace(line)
 			if trimLine != "" {

@@ -32,6 +32,8 @@ type Contract struct {
 
 	InnerArrV map[string]*Contract
 	Inner     map[string]*Contract
+
+	Comments []string
 }
 
 func NewNillContract() *Contract {
@@ -43,5 +45,26 @@ func NewNillContract() *Contract {
 		StringV:   make([]string, 0),
 		Inner:     make(map[string]*Contract),
 		InnerArrV: make(map[string]*Contract),
+		Comments:  make([]string, 0),
 	}
+}
+
+func (c *Contract) GetComments() []string {
+	return c.Comments
+}
+
+func (c *Contract) GetInnerV() map[string]WithDocumentation {
+	res := map[string]WithDocumentation{}
+	for key, val := range c.Inner {
+		res[key] = WithDocumentation(val)
+	}
+	return res
+}
+
+func (c *Contract) GetInnerA() map[string][]WithDocumentation {
+	res := map[string][]WithDocumentation{}
+	for key, val := range c.InnerArrV {
+		res[key] = []WithDocumentation{WithDocumentation(val)}
+	}
+	return res
 }

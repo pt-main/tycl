@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/pt-main/tycl/shared"
+	"github.com/pt-main/tycl/utils"
 )
 
 func CheckContract(conf *shared.Config, cont *shared.Contract) error {
@@ -219,7 +220,7 @@ func CheckContract(conf *shared.Config, cont *shared.Contract) error {
 	}
 
 	for key, typ := range conf.NullV {
-		if !shared.IsTypeValid(typ) {
+		if !utils.IsTypeValid(typ) {
 			errs = append(errs, fmt.Sprintf("invalid type %q for null key %q", typ, key))
 			continue
 		}

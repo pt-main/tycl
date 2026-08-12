@@ -12,6 +12,7 @@ func NewLexer() *stringParsing.Lexer {
 		{Type: "STRING", Pattern: regexp2.MustCompile(`'(?:\\.|[^'\\])*'`, 0)},
 		// {Type: "LITERAL", Pattern: regexp2.MustCompile("(?s)`"+`(?:\\.|[^`+"`"+`\\])*`+"`", 0)},
 		{Type: "COMMENT", Pattern: regexp2.MustCompile(`(?s)/\*(?<value>.*?)\*/`, 0)},
+		{Type: "COMMENT_LINE", Pattern: regexp2.MustCompile(`//[^\n]*`, 0)},
 		{Type: "FLOAT", Pattern: regexp2.MustCompile(`-?\d+\.\d+`, 0)},
 		{Type: "INT", Pattern: regexp2.MustCompile(`-?\d+`, 0)},
 		{Type: "BOOL", Pattern: regexp2.MustCompile(`true|false`, 0)},
@@ -85,9 +86,6 @@ func createGrammar() parser3.Grammar {
 				Expr: parser3.SequenceExpr{
 					Exprs: []parser3.Expr{
 						parser3.TokenExpr{TokenType: "LBRACK"},
-						parser3.OptionalExpr{
-							Expr: parser3.TokenExpr{TokenType: "COMMENT"},
-						},
 						parser3.RepeatExpr{
 							Expr: parser3.SequenceExpr{
 								Exprs: []parser3.Expr{
@@ -99,9 +97,6 @@ func createGrammar() parser3.Grammar {
 						},
 						parser3.OptionalExpr{
 							Expr: parser3.NamedExpr{RuleName: "value"},
-						},
-						parser3.OptionalExpr{
-							Expr: parser3.TokenExpr{TokenType: "COMMENT"},
 						},
 						parser3.TokenExpr{TokenType: "RBRACK"},
 					},
@@ -155,9 +150,6 @@ func createGrammar() parser3.Grammar {
 					Exprs: []parser3.Expr{
 						parser3.TokenExpr{TokenType: "IDENT"},
 						parser3.TokenExpr{TokenType: "LPAREN"},
-						parser3.OptionalExpr{
-							Expr: parser3.TokenExpr{TokenType: "COMMENT"},
-						},
 						parser3.RepeatExpr{
 							Expr: parser3.SequenceExpr{
 								Exprs: []parser3.Expr{
@@ -170,9 +162,6 @@ func createGrammar() parser3.Grammar {
 						parser3.OptionalExpr{
 							Expr: parser3.NamedExpr{RuleName: "value"},
 						},
-						parser3.OptionalExpr{
-							Expr: parser3.TokenExpr{TokenType: "COMMENT"},
-						},
 						parser3.TokenExpr{TokenType: "RPAREN"},
 					},
 				},
@@ -184,5 +173,6 @@ func createGrammar() parser3.Grammar {
 func NewParser() *parser3.Parser {
 	return parser3.NewParser(NewLexer(), createGrammar(), "config", []string{
 		"WHITESPACE",
+		"COMMENT_LINE",
 	})
 }

@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"slices"
+	"strings"
 )
 
 func OpenF(file string) (string, error) {
@@ -31,4 +33,25 @@ func WriteF(filename string, data string) error {
 		return fmt.Errorf("Write: %v", err)
 	}
 	return nil
+}
+
+func ReprStringValue(value string) string {
+	return `"` + strings.ReplaceAll(strings.ReplaceAll(value, `"`, `\"`), "\n", `\n`) + `"`
+}
+
+func IsTypeValid(vtype string) bool {
+	return slices.Contains([]string{
+		"null",
+		"bool",
+		"int",
+		"float",
+		"string",
+		"object",
+
+		"bools",
+		"ints",
+		"floats",
+		"strings",
+		"objects",
+	}, vtype)
 }

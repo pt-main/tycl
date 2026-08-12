@@ -43,9 +43,47 @@ const TYPES = [
 const CONTRACTS = ['strict', 'flexible', 'dynamic'];
 const ACTIONS = ['file', 'env', 'join', 'asString', 'asObject'];
 const VALUES = ['true', 'false', 'null'];
+function isInComment(document, position) {
+    const text = document.getText(new vscode.Range(new vscode.Position(0, 0), position));
+    let inComment = false;
+    let i = 0;
+    while (i < text.length - 1) {
+        if (!inComment && text[i] === '/' && text[i + 1] === '*') {
+            inComment = true;
+            i += 2;
+        }
+        else if (inComment && text[i] === '*' && text[i + 1] === '/') {
+            inComment = false;
+            i += 2;
+        }
+        else {
+            i++;
+        }
+    }
+    if (!inComment) {
+        i = 0;
+        while (i < text.length - 1) {
+            if (!inComment && text[i] === '/' && text[i + 1] === '/') {
+                inComment = true;
+                i += 2;
+            }
+            else if (inComment && text[i] === '\n') {
+                inComment = false;
+                i++;
+            }
+            else {
+                i++;
+            }
+        }
+    }
+    return inComment;
+}
 function activate(context) {
     const provider = vscode.languages.registerCompletionItemProvider('tycl', {
         provideCompletionItems(document, position) {
+            if (isInComment(document, position)) {
+                return [];
+            }
             const line = document.lineAt(position).text;
             const textBeforeCursor = line.substring(0, position.character);
             const items = [];

@@ -47,7 +47,9 @@ func (cp *configParser) parseType(node *stringParsing.ParsedNode, vtype, value s
 		}
 	case "object":
 		var obj *shared.Config
-		obj, err = ParseConf(value, cp.StrictKeys)
+		newconf := shared.NewNilConfig()
+		newconf.MainConf = cp.Conf
+		obj, err = ParseConf(newconf, value, cp.StrictKeys)
 		if err == nil {
 			obj.Name = "inner"
 			objectv = obj
@@ -73,8 +75,4 @@ func parseStringValue(value string) (stringv string, err error) {
 	}
 	err = fmt.Errorf("Invalid string format")
 	return
-}
-
-func ReprStringValue(value string) string {
-	return `"` + strings.ReplaceAll(strings.ReplaceAll(value, `"`, `\"`), "\n", `\n`) + `"`
 }

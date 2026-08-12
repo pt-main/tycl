@@ -10,7 +10,7 @@ import (
 	"github.com/pt-main/tycl/shared"
 )
 
-var Version = "1.2.1"
+var Version = "1.3.0"
 
 func Process(conf, cont string, strictKeys bool) (cfgs *shared.Config, err error) {
 	defer func() {
@@ -27,7 +27,8 @@ func Process(conf, cont string, strictKeys bool) (cfgs *shared.Config, err error
 			return nil, err
 		}
 	}
-	cfg, err := lang.ParseConf(conf, strictKeys)
+	mainconf := shared.NewNilConfig()
+	cfg, err := lang.ParseConf(mainconf, conf, strictKeys)
 	if err != nil {
 		return nil, err
 	}

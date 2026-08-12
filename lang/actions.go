@@ -3,8 +3,10 @@ package lang
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/pt-main/lc/parsing/stringParsing"
+	"github.com/pt-main/tycl/generation"
 	"github.com/pt-main/tycl/utils"
 )
 
@@ -36,7 +38,7 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			if err != nil {
 				return
 			}
-			val = ReprStringValue(val)
+			val = utils.ReprStringValue(val)
 			vtype = "string"
 			return
 		},
@@ -61,7 +63,7 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			if args[0].Switch == "action" {
 				_, val, err = cp.parseAction(&args[0])
 			}
-			val = ReprStringValue(val)
+			val = utils.ReprStringValue(val)
 			vtype = "string"
 			return
 		},
@@ -79,7 +81,7 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 				join += strv
 			}
 			vtype = "string"
-			val = ReprStringValue(join)
+			val = utils.ReprStringValue(join)
 			return
 		},
 		"env": func(cp *configParser, pn *stringParsing.ParsedNode,
@@ -112,6 +114,47 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			}
 
 			val = envVal
+			return
+		},
+		"get": func(cp *configParser, pn *stringParsing.ParsedNode,
+			args []stringParsing.ParsedNode) (vtype string, val string, err error) {
+			if len(args) != 2 {
+				err = fmt.Errorf("got: need 2 args, got %d", len(args))
+				return
+			}
+
+			var name string
+			name, err = parseStringValue(args[0].Raw)
+			if err != nil {
+				return
+			}
+
+			vtype, err = parseStringValue(args[1].Raw)
+			if err != nil {
+				return
+			}
+
+			obj := cp.Conf.MainConf
+			getName := ""
+			path := strings.Split(name, ".")
+			for idx, to := range path {
+				if idx != len(path)-1 {
+					var ok bool
+					obj, ok = obj.InnerV[to]
+					if !ok {
+						err = fmt.Errorf("Can't get: %v", to)
+						return
+					}
+				} else {
+					getName = to
+				}
+			}
+
+			val, err = generation.GetRepr(obj, vtype, getName)
+			if err != nil {
+				return
+			}
+
 			return
 		},
 	}

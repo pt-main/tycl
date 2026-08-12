@@ -12,17 +12,28 @@ import (
 func main() {
 	conf := `
 {
+	/* doc 1 */ 
+	enviroment = {
+		var1:string="b"
+	},
     port: int = 8080,
     host: string = "localhost",
     timeout: int = -1,
     test1: objects = [
-        { key: string = "a" },
-        { key: string = "b" }
-    ]
+        { 
+			/* doc 3 */ 
+			key: string = "a" 
+		},
+        { 
+			/* doc 4 */ 
+			key = get("enviroment.var1", "string")
+		},
+    ],
+	/* doc 2 */
 }`
 
 	contract := `
-strict {
+flexible {
     port: int,
     host: string,
     timeout: int,

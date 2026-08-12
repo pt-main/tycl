@@ -14,11 +14,14 @@ type Config struct {
 
 	InnerV    map[string]*Config
 	InnerArrV map[string][]*Config
-	Name      string
+
+	MainConf *Config
+	Comments []string
+	Name     string
 }
 
 func NewNilConfig() *Config {
-	return &Config{
+	conf := &Config{
 		IntV:    make(map[string]int),
 		FloatV:  make(map[string]float64),
 		BoolV:   make(map[string]bool),
@@ -32,6 +35,33 @@ func NewNilConfig() *Config {
 
 		InnerV:    make(map[string]*Config),
 		InnerArrV: make(map[string][]*Config),
-		Name:      "",
+
+		Comments: make([]string, 0),
+		Name:     "",
 	}
+	conf.MainConf = conf
+	return conf
+}
+
+func (c *Config) GetComments() []string {
+	return c.Comments
+}
+
+func (c *Config) GetInnerV() map[string]WithDocumentation {
+	res := map[string]WithDocumentation{}
+	for key, val := range c.InnerV {
+		res[key] = WithDocumentation(val)
+	}
+	return res
+}
+
+func (c *Config) GetInnerA() map[string][]WithDocumentation {
+	res := map[string][]WithDocumentation{}
+	for key, val := range c.InnerArrV {
+		res[key] = []WithDocumentation{}
+		for _, val := range val {
+			res[key] = append(res[key], val)
+		}
+	}
+	return res
 }

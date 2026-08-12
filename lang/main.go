@@ -10,15 +10,15 @@ import (
 	"github.com/pt-main/tap/color"
 	"github.com/pt-main/tycl/lang/lcproc"
 	"github.com/pt-main/tycl/shared"
+	"github.com/pt-main/tycl/utils"
 )
 
-func ParseConf(code string, strictKeys bool) (*shared.Config, error) {
+func ParseConf(conf *shared.Config, code string, strictKeys bool) (*shared.Config, error) {
 	p := lcproc.NewParser()
 	pn, err := p.Parse(code)
 	if err != nil {
 		return nil, err
 	}
-	conf := shared.NewNilConfig()
 	cp := configParser{
 		Code:       code,
 		StrictKeys: strictKeys,
@@ -136,13 +136,15 @@ func (cp *configParser) ParseBody() (conf *shared.Config, err error) {
 	defer func() {
 		conf = cp.Conf
 	}()
-	pairs := astools.FindChildren(
+
+	object := astools.FindChild(
 		astools.FindChild(
-			astools.FindChild(
-				cp.Node, "config",
-			), "object",
-		), "pair",
+			cp.Node, "config",
+		), "object",
 	)
+	pairs := astools.FindChildren(object, "pair")
+	comments := astools.FindChildren(object, "COMMENT")
+
 	keys := []string{}
 	for idx, pair := range pairs {
 		defer func() {
@@ -175,12 +177,19 @@ func (cp *configParser) ParseBody() (conf *shared.Config, err error) {
 			}
 		}
 		vtype = strings.ToLower(vtype)
-		if !shared.IsTypeValid(vtype) && vtype != "action" {
+		if !utils.IsTypeValid(vtype) && vtype != "action" {
 			err = fmt.Errorf("Invalid value type: %v", vtype)
 			return
 		}
 		if err = cp.setValue(vtype, value, key, valueNode); err != nil {
 			return
+		}
+	}
+
+	for _, comm := range comments {
+		comment := comm.Metadata["value"].(string)
+		for _, line := range strings.Split(comment, "\n") {
+			cp.Conf.Comments = append(cp.Conf.Comments, line)
 		}
 	}
 	return

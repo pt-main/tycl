@@ -9,6 +9,7 @@ import (
 func NewLexer() *stringParsing.Lexer {
 	rules := []stringParsing.LexerRule{
 		{Type: "COMMENT", Pattern: regexp2.MustCompile(`(?s)/\*(?<value>.*?)\*/`, 0)},
+		{Type: "COMMENT_LINE", Pattern: regexp2.MustCompile(`//[^\n]*`, 0)},
 		{Type: "CONTRACT", Pattern: regexp2.MustCompile(`strict|flexible|dynamic`, 0)},
 		{Type: "IDENT", Pattern: regexp2.MustCompile(`[a-zA-Z_][a-zA-Z0-9_\-]*`, 0)},
 		{Type: "COLON", Pattern: regexp2.MustCompile(`:`, 0)},
@@ -96,5 +97,6 @@ func createGrammar() parser3.Grammar {
 func NewParser() *parser3.Parser {
 	return parser3.NewParser(NewLexer(), createGrammar(), "config", []string{
 		"WHITESPACE",
+		"COMMENT_LINE",
 	})
 }
