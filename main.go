@@ -10,7 +10,7 @@ import (
 	"github.com/pt-main/tycl/shared"
 )
 
-var Version = "1.2.0"
+var Version = "1.2.1"
 
 func Process(conf, cont string, strictKeys bool) (cfgs *shared.Config, err error) {
 	defer func() {

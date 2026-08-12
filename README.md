@@ -135,7 +135,7 @@ app: object = {
 
 ### Comments
 
-Only **block comments** `/* ... */` are supported, and they may be placed **only at the beginning or at the end of a block** (object or array). This makes comments act as documentation for the block.
+Only **block comments** `/* ... */` are supported, and they may be placed **only at the beginning or at the end of a block** (object, array, or action). This makes comments act as documentation for the block.
 
 ```tycl
 server: object = {
@@ -385,11 +385,14 @@ strict {
 
 If you do not need a contract, pass `""` or `"dynamic{}"` — validation will be skipped.
 
----
+## VSCode Plugin
 
-## Future plans
+Download the plugin from the releases page and install it.
 
-- **VS Code plugin:** syntax highlighting, autocompletion, formatting.
+Plugin features:
+
+- Syntax highlighting for contracts and configs (file type is not checked)
+- Autocompletion for syntax (actions, types, contract types are completed)
 
 ---
 
@@ -399,4 +402,4 @@ Apache 2.0 — see [LICENSE](LICENSE) for details.
 
 ---
 
-**TYCL** — built for convenience, safety, and simplicity. Try it — and you won't want to go back to JSON.
+By Pt, 2026, written in Lc and using Tap.
