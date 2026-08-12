@@ -135,7 +135,7 @@ app: object = {
 
 ### Comments
 
-Only **block comments** `/* ... */` are supported, and they may be placed **only at the beginning or at the end of a block** (object, array, or action). This makes comments act as documentation for the block.
+**Block comments** `/* ... */` are supported as documentation, and they may be placed **only at the beginning or at the end of an object**.
 
 ```tycl
 server: object = {
@@ -146,11 +146,11 @@ server: object = {
 }
 ```
 
-Line comments (`//`) are **not supported**.
+Line comments (`//`) are ignored during translation and removed by the formatter.
 
 ### Actions
 
-TYCL supports calling functions directly in values. Actions allow you to read files, substitute environment variables, convert types, and join strings.
+TYCL supports calling functions directly in values. Actions allow you to read files, substitute environment variables, convert types, join strings, and reference other config values.
 
 **Syntax:** `action_name(arguments)`
 
@@ -163,8 +163,68 @@ TYCL supports calling functions directly in values. Actions allow you to read fi
 | `join(...)` | Concatenates strings | `name: string = join("auth", "-", "service")` |
 | `asString(value)` | Converts a value to a string | `debug: string = asString({ debug: bool = true })` |
 | `asObject(string)` | Converts a string (containing TYCL code) to an object | `db: object = asObject(file("db.tycl"))` |
+| `get("path", "type")` | Gets a value from the config by dot‑notation path and type | `host: string = get("server.host", "string")` |
 
-**Example with actions:**
+#### Detailed action descriptions
+
+- **`file("path")`**  
+  Reads the contents of the file at the given path and returns it as a string. Useful for embedding external configs or data.
+
+  ```tycl
+  config: string = file("settings.json")
+  ```
+
+- **`env("VAR", "default", "type")`**  
+  Gets the value of an environment variable. If the variable is not set or empty, the default value is used. The third argument specifies the expected type (`string`, `int`, `bool`, `float`) — the result will be coerced to that type.
+
+  ```tycl
+  port: int = env("PORT", "8080", "int")
+  host: string = env("HOST", "'localhost'", "string")
+  debug: bool = env("DEBUG", "false", "bool")
+  ```
+
+- **`join(...)`**  
+  Concatenates an arbitrary number of string arguments into a single string. Arguments can be literals or results of other actions.
+
+  ```tycl
+  fullName: string = join("Mr. ", "John", " ", "Doe")
+  endpoint: string = join("https://", env("API_HOST", "'api'", "string"), ".example.com")
+  ```
+
+- **`asString(value)`**  
+  Converts the given value (object, number, boolean) into a string. Usually used for debugging or creating string representations of complex structures.
+
+  ```tycl
+  configStr: string = asString({ debug: bool = true, level: int = 2 })
+  ```
+
+- **`asObject(string)`**  
+  Takes a string containing TYCL code and parses it into an object. This allows dynamic creation of objects from string data (e.g., file contents).
+
+  ```tycl
+  dynamicConfig: object = asObject(file("dynamic.tycl"))
+  inlineConfig: object = asObject("{ enabled: bool = true }")
+  ```
+
+- **`get("path", "type")`**  
+  Extracts a value from any part of the config (path syntax: `[root config].[nested object].[...]`, arrays are not supported) using dot‑notation (e.g., `"database.host"`) and coerces it to the specified type. The path can traverse nested objects. This allows reusing values in different parts of the config.
+
+  ```tycl
+  {
+      server: object = {
+          host: string = "localhost"
+          port: int = 8080
+      }
+      mainHost: string = get("server.host", "string")   // "localhost"
+      mainPort: int = get("server.port", "int")         // 8080
+  }
+  ```
+
+  If the path does not exist or the type does not match, a validation error occurs.
+
+---
+
+#### Example with multiple actions
 
 ```tycl
 database: object = asObject(
@@ -189,7 +249,9 @@ modules: strings = [
 
 debug: string = asString(
     { debug_mode: bool = true }
-)
+),
+
+mainHost: string = get("server.host", "string")
 ```
 
 ### Important rules
@@ -402,4 +464,4 @@ Apache 2.0 — see [LICENSE](LICENSE) for details.
 
 ---
 
-By Pt, 2026, written in Lc and using Tap.
+By Pt, 2026, written in Lc and uses Tap.
