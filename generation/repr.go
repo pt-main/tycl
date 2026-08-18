@@ -1,19 +1,16 @@
 package generation
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/pt-main/lc/engine/core"
 	"github.com/pt-main/tycl/shared"
 )
 
-// GetRepr возвращает строковое представление значения из Config по типу и ключу
-// в формате TYCL. Поддерживаются все типы: скаляры, объекты, массивы.
-// Если ключ не найден или тип не совпадает, возвращает ошибку.
-func GetRepr(cfg *shared.Config, typ, name string) (string, error) {
+func GetRepr(cfg *shared.Config, typ, name string) (string, core.ErrorInterface) {
 	if cfg == nil {
-		return "", fmt.Errorf("config is nil")
+		return "", core.Err(shared.RuntimeError, "Config is nil")
 	}
 
 	switch typ {
@@ -38,7 +35,6 @@ func GetRepr(cfg *shared.Config, typ, name string) (string, error) {
 			return "null", nil
 		}
 
-	// Массивы скаляров
 	case "ints":
 		if v, ok := cfg.IntArrV[name]; ok {
 			return reprIntArray(v), nil
@@ -56,29 +52,24 @@ func GetRepr(cfg *shared.Config, typ, name string) (string, error) {
 			return reprStringArray(v), nil
 		}
 
-	// Объект
 	case "object":
 		if v, ok := cfg.InnerV[name]; ok {
 			return reprObject(v), nil
 		}
 
-	// Массив объектов
 	case "objects":
 		if v, ok := cfg.InnerArrV[name]; ok {
 			return reprObjectArray(v), nil
 		}
 
 	default:
-		return "", fmt.Errorf("unsupported type: %s", typ)
+		return "", core.Err(shared.RuntimeError, "Unsupported type: %s", typ)
 	}
 
-	return "", fmt.Errorf("key %q not found for type %s", name, typ)
+	return "", core.Err(shared.RuntimeError, "Key %q not found for type %s", name, typ)
 }
 
-// Вспомогательные функции для форматирования в TYCL-стиле
-
 func quoteString(s string) string {
-	// Используем двойные кавычки и экранируем, как в TYCL
 	return strconv.Quote(s)
 }
 
@@ -130,11 +121,9 @@ func reprObject(obj *shared.Config) string {
 	if obj == nil {
 		return "{}"
 	}
-	// Используем существующую функцию Tycl для генерации TYCL-кода объекта
-	// (она уже есть в пакете generation)
 	code, err := Tycl(obj)
 	if err != nil {
-		// fallback: использовать упрощённое представление
+
 		return "{}"
 	}
 	return code

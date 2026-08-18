@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/pt-main/tycl"
+	"github.com/pt-main/tycl/format"
 	"github.com/pt-main/tycl/generation"
 	"github.com/pt-main/tycl/shared"
 )
@@ -13,7 +13,7 @@ func main() {
 	conf := `
 {
 	/* doc 1 */ 
-	enviroment = {
+	enviroment: string = {
 		var1:string="b"
 	},
     port: int = 8080,
@@ -29,6 +29,7 @@ func main() {
 			key = get("enviroment.var1", "string")
 		},
     ],
+	key2: int = 'str',
 	/* doc 2 */
 }`
 
@@ -44,7 +45,7 @@ flexible {
 
 	cfg, err := tycl.Process(conf, contract, false)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(format.FormatError(err))
 	}
 
 	fmt.Println(cfg.IntV["port"])    // 8080

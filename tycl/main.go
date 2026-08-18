@@ -120,6 +120,52 @@ func NewCli() *tap.Parser {
 		false,
 	)
 
+	p.AddCommand("file", FileHandler,
+		`[?GN]Edit, view, or remove config values directly from CLI.[?RT]
+
+[?BBE]Usage:[?RT]
+    tycl file <subcommand> [args...] --path=<config-file> [--strict-keys]
+
+[?BBE]Global flag for file command:[?RT]
+    --path          Path to the TYCL config file (required)
+    --strict-keys   Enable strict keys mode (duplicate keys forbidden)
+
+[?BBE]Subcommands:[?RT]
+
+    [?YW]get[?RT] <type> <key>                 [?BBK]# Get the value of a key[?RT]
+    [?YW]set[?RT] <type> <key> <value>         [?BBK]# Set the value of a key[?RT]
+    [?YW]remove[?RT] <type> <key>              [?BBK]# Remove a key[?RT]
+    [?YW]structure[?RT]                        [?BBK]# Show the whole config structure[?RT]
+    [?YW]help[?RT]
+
+[?BBE]Examples:[?RT]
+    [?BBK]# Get value[?RT]
+    tycl file get --path=config.tycl int port
+
+    [?BBK]# Set scalar[?RT]
+    tycl file set --path=config.tycl int port 9090
+    tycl file set --path=config.tycl string host "localhost"
+    tycl file set --path=config.tycl null timeout int
+
+    [?BBK]# Set array[?RT]
+    tycl file set --path=config.tycl ints ports "8080,8081,8082"
+    tycl file set --path=config.tycl strings names "dev,prod,stage"
+
+    [?BBK]# Set object[?RT]
+    tycl file set --path=config.tycl object server "{host: string = \"127.0.0.1\", port: int = 8080}"
+
+    [?BBK]# Set array of objects[?RT]
+    tycl file set --path=config.tycl objects servers "[{host: string = \"a\", port: int = 80}, {host: string = \"b\", port: int = 443}]"
+
+    [?BBK]# Remove a key[?RT]
+    tycl file remove --path=config.tycl int port
+    tycl file remove --path=config.tycl object server
+
+    [?BBK]# Show structure[?RT]
+    tycl file structure --path=config.tycl`,
+		nil, nil, true,
+	)
+
 	return p
 }
 

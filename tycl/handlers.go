@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/pt-main/lc/engine/core"
 	"github.com/pt-main/tap"
 	"github.com/pt-main/tap/color"
 	"github.com/pt-main/tycl"
@@ -26,10 +27,10 @@ func ValidHandler(p *tap.Parser, s []string) error {
 		contract = ctr
 	}
 	_, strict := p.Flags["--strict-keys"]
-	_, err = tycl.Process(config, contract, strict)
-	if err != nil {
-		color.PrintlnColored("[?RD]Validation failed: %v[?RT]", err)
-		return err
+	_, err_ := tycl.Process(config, contract, strict)
+	if err_ != nil {
+		fmt.Printf(color.Set("[?RD]Validation failed: %v[?RT]\n"), format.FormatError(err_))
+		return err_
 	}
 	color.PrintlnColored("[?GN]Validated[?RT]")
 	return nil
@@ -71,7 +72,7 @@ func FormatHandler(p *tap.Parser, s []string) error {
 		color.PrintlnColored("[?RD]Has no files to format[?RT]")
 		return nil
 	}
-	var formfunc func(string) (string, error)
+	var formfunc func(string) (string, core.ErrorInterface)
 	switch ftype {
 	case "cont", "contract":
 		formfunc = format.FormContract
@@ -86,9 +87,9 @@ func FormatHandler(p *tap.Parser, s []string) error {
 			color.PrintlnColored("[?RD]Can't open %v:[?RT]\n%v", file, err)
 			continue
 		}
-		res, err := formfunc(config)
-		if err != nil {
-			color.PrintlnColored("[?RD]%v formatting failed:[?RT]\n%v", file, err)
+		res, err_ := formfunc(config)
+		if err_ != nil {
+			fmt.Printf(color.Set("[?RD]%v formatting failed:[?RT]\n%v\n"), file, format.FormatError(err_))
 			continue
 		}
 		err = utils.WriteF(file, res)
@@ -108,9 +109,10 @@ func GenerateHandler(p *tap.Parser, s []string) error {
 	}
 	contract := "dynamic{}"
 	_, strict := p.Flags["--strict-keys"]
-	conf, err := tycl.Process(config, contract, strict)
-	if err != nil {
-		return err
+	conf, err_ := tycl.Process(config, contract, strict)
+	if err_ != nil {
+		fmt.Println(color.Set("[?RD]Error:[?RT]\n"), format.FormatError(err_))
+		return err_
 	}
 	var form func(*shared.Config) (string, error)
 	format := s[2]
@@ -142,9 +144,10 @@ func ContractHandler(p *tap.Parser, s []string) error {
 	}
 	contract := "dynamic{}"
 	_, strict := p.Flags["--strict-keys"]
-	conf, err := tycl.Process(config, contract, strict)
-	if err != nil {
-		return err
+	conf, err_ := tycl.Process(config, contract, strict)
+	if err_ != nil {
+		fmt.Println(color.Set("[?RD]Error:[?RT]\n"), format.FormatError(err_))
+		return err_
 	}
 	var contT shared.ContractType
 	ctype := s[2]

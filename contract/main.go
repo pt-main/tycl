@@ -1,19 +1,18 @@
 package contract
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
+	"github.com/pt-main/lc/engine/core"
 	"github.com/pt-main/lc/parsing/stringParsing"
 	"github.com/pt-main/lc/tooling/astools"
-	"github.com/pt-main/tap/color"
 	"github.com/pt-main/tycl/contract/lcproc"
 	"github.com/pt-main/tycl/shared"
 	"github.com/pt-main/tycl/utils"
 )
 
-func ParseContract(code string) (*shared.Contract, error) {
+func ParseContract(code string) (*shared.Contract, core.ErrorInterface) {
 	p := lcproc.NewParser()
 	pn, err := p.Parse(code)
 	if err != nil {
@@ -22,10 +21,10 @@ func ParseContract(code string) (*shared.Contract, error) {
 	return ParseBody(&pn[0])
 }
 
-func processPair(vtype, key, value string, con *shared.Contract, valueNode *stringParsing.ParsedNode) (err error) {
+func processPair(vtype, key, value string, con *shared.Contract, valueNode *stringParsing.ParsedNode) (err core.ErrorInterface) {
 	switch vtype {
 	case "null":
-		err = fmt.Errorf("Can't contract null values")
+		err = core.Err(shared.RuntimeError, "Can't contract null values")
 	case "bool":
 		con.BoolV = append(con.BoolV, key)
 	case "int":
@@ -46,7 +45,7 @@ func processPair(vtype, key, value string, con *shared.Contract, valueNode *stri
 			contractType = shared.ContractDynamic
 		}
 		if value == "" {
-			err = fmt.Errorf("Can't contract object: invalid value: '%v'", value)
+			err = core.Err(shared.RuntimeError, "Can't contract object: invalid value: '%v'", value)
 			return
 		}
 		var inner *shared.Contract
@@ -74,7 +73,7 @@ func processPair(vtype, key, value string, con *shared.Contract, valueNode *stri
 	return
 }
 
-func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err error) {
+func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err core.ErrorInterface) {
 	con = shared.NewNillContract()
 	obj := astools.FindChild(
 		astools.FindChild(
@@ -96,12 +95,14 @@ func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err error) {
 	case "dynamic":
 		con.Type = shared.ContractDynamic
 	}
-	for _, pair := range pairs {
+	errs := []core.ErrorInterface{}
+	for idx, pair := range pairs {
 		defer func() {
-			if err != nil {
-				err = fmt.Errorf(color.Set(
-					"[?RD]Code: [?RT]\n%v\n[?RD]Error in: [?RT]'%v': \n[?RD]%v[?RT]",
-				), pn.Raw, pair, err)
+			if len(errs) > 0 {
+				err = core.Err(shared.ContextedError, "ERR").
+					WithMeta("idx", idx).
+					WithMeta("raw", pair.Raw).
+					WithMeta("errs", errs)
 			}
 			return
 		}()
@@ -111,7 +112,8 @@ func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err error) {
 		vtype := typeNode.Raw
 		vtype = strings.ToLower(vtype)
 		if !utils.IsTypeValid(vtype) {
-			err = fmt.Errorf("Invalid type: %v", vtype)
+			err = core.Err(shared.ProcessingError, "Invalid type: %v", vtype).
+				WithMeta("raw", pair.Raw).WithMeta("idx", idx)
 			return
 		}
 		valueNode := astools.FindChild(&pair, "object")
@@ -121,15 +123,19 @@ func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err error) {
 		}
 		isObject := slices.Contains([]string{"object", "objects"}, vtype)
 		if value == "" && isObject {
-			err = fmt.Errorf(
+			err = core.Err(shared.ProcessingError,
 				"Can't contract: assertion value is not object (type '%v', must be object or objects)",
-				vtype)
+				vtype).WithMeta("raw", pair.Raw).WithMeta("idx", idx)
 			return
 		}
 		if value != "" && !isObject {
-			err = fmt.Errorf("Can't contract: invalid type assertion")
+			err = core.Err(shared.ProcessingError, "Can't contract: invalid type assertion").
+				WithMeta("raw", pair.Raw).WithMeta("idx", idx)
 		}
-		if err = processPair(vtype, key, value, con, valueNode); err != nil {
+		err_ := processPair(vtype, key, value, con, valueNode)
+		if err_ != nil {
+			err = core.Wrap(shared.ProcessingError, err_, core.GetRealError(err_)).
+				WithMeta("raw", pair.Raw).WithMeta("idx", idx)
 			return
 		}
 	}

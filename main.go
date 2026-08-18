@@ -1,27 +1,19 @@
 package tycl
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/pt-main/tap/color"
+	"github.com/pt-main/lc/engine/core"
 	"github.com/pt-main/tycl/contract"
 	"github.com/pt-main/tycl/lang"
 	"github.com/pt-main/tycl/shared"
 )
 
-var Version = "1.3.0"
+var Version = "1.3.5"
 
-func Process(conf, cont string, strictKeys bool) (cfgs *shared.Config, err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf(color.Set(err.Error()))
-		}
-		return
-	}()
+func Process(conf, cont string, strictKeys bool) (cfgs *shared.Config, err core.ErrorInterface) {
 	contr := shared.NewNillContract()
 	if strings.TrimSpace(cont) != "" {
-		var err error
 		contr, err = contract.ParseContract(cont)
 		if err != nil {
 			return nil, err
@@ -33,7 +25,7 @@ func Process(conf, cont string, strictKeys bool) (cfgs *shared.Config, err error
 		return nil, err
 	}
 	if err := CheckContract(cfg, contr); err != nil {
-		return nil, fmt.Errorf("Invalid config: %w", err)
+		return nil, core.Wrap(shared.WrappedError, err, "Invalid config: %v", err)
 	}
 	return cfg, nil
 }

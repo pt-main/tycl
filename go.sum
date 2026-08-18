@@ -8,6 +8,8 @@ github.com/pt-main/lc v1.5.0-pre2 h1:mCEIZ2D14wNF5bPdRlfcJer+YcX3Ltl4VVnJWhBU9VA
 github.com/pt-main/lc v1.5.0-pre2/go.mod h1:uUxWI4oiOkia6Tko+cgF+O3fhGZF3of1NSHeTEjOaMU=
 github.com/pt-main/lc v1.5.2 h1:9XgZ9I090uPjy//Ldq9tCTsSbYQn5UBqsGZ9EuHAj88=
 github.com/pt-main/lc v1.5.2/go.mod h1:uUxWI4oiOkia6Tko+cgF+O3fhGZF3of1NSHeTEjOaMU=
+github.com/pt-main/lc v1.5.3 h1:SyOAnv33StAhgX/JRE5PjNql2WED8Khi6EERwwC7rk8=
+github.com/pt-main/lc v1.5.3/go.mod h1:uUxWI4oiOkia6Tko+cgF+O3fhGZF3of1NSHeTEjOaMU=
 github.com/pt-main/tap v1.4.7 h1:73hoVgdAng1qh/TKLzfR2sREHCTcNFuOpwseQupD+5Y=
 github.com/pt-main/tap v1.4.7/go.mod h1:ULQUJ/+8VIji9oq26pr1cmbXv+VUlhjsvq1n/vd4f3I=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=

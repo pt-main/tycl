@@ -1,32 +1,33 @@
 package lang
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
+	"github.com/pt-main/lc/engine/core"
 	"github.com/pt-main/lc/parsing/stringParsing"
 	"github.com/pt-main/tycl/generation"
+	"github.com/pt-main/tycl/shared"
 	"github.com/pt-main/tycl/utils"
 )
 
 type actionMap map[string]func(
 	cp *configParser, pn *stringParsing.ParsedNode, args []stringParsing.ParsedNode,
-) (vtype string, val string, err error)
+) (vtype string, val string, err core.ErrorInterface)
 
 func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, args []stringParsing.ParsedNode) (
-	vtype, val string, err error,
+	vtype, val string, err core.ErrorInterface,
 ) {
 	return actionMap{
 		"file": func(cp *configParser, pn *stringParsing.ParsedNode,
-			args []stringParsing.ParsedNode) (vtype, val string, err error) {
+			args []stringParsing.ParsedNode) (vtype, val string, err core.ErrorInterface) {
 			if len(args) != 1 {
-				err = fmt.Errorf("Invalid arguments length: must be 1 (now %v)", len(args))
+				err = core.Err(shared.RuntimeError, "Invalid arguments length: must be 1 (now %v)", len(args))
 				return
 			}
 			sw := args[0].Switch
 			if sw != "STRING" {
-				err = fmt.Errorf("Invalid argument: need string, got %v", sw)
+				err = core.Err(shared.RuntimeError, "Invalid argument: need string, got %v", sw)
 				return
 			}
 			var strv string
@@ -34,8 +35,10 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			if err != nil {
 				return
 			}
-			val, err = utils.OpenF(strv)
-			if err != nil {
+			var err_ error
+			val, err_ = utils.OpenF(strv)
+			if err_ != nil {
+				err = core.Wrap(shared.WrappedError, err_, err_.Error())
 				return
 			}
 			val = utils.ReprStringValue(val)
@@ -43,20 +46,20 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			return
 		},
 		"asObject": func(cp *configParser, pn *stringParsing.ParsedNode,
-			args []stringParsing.ParsedNode) (vtype string, val string, err error) {
+			args []stringParsing.ParsedNode) (vtype string, val string, err core.ErrorInterface) {
 			var a0t string
 			a0t, _, _, _, val, _, err = cp.parseType(&args[0], "string", args[0].Raw)
 			if a0t != "string" {
-				err = fmt.Errorf("Invalid argument: need string, got %v", a0t)
+				err = core.Err(shared.RuntimeError, "Invalid argument: need string, got %v", a0t)
 				return
 			}
 			vtype = "object"
 			return
 		},
 		"asString": func(cp *configParser, pn *stringParsing.ParsedNode,
-			args []stringParsing.ParsedNode) (vtype string, val string, err error) {
+			args []stringParsing.ParsedNode) (vtype string, val string, err core.ErrorInterface) {
 			if len(args) != 1 {
-				err = fmt.Errorf("Invalid arguments length: must be 1 (now %v)", len(args))
+				err = core.Err(shared.RuntimeError, "Invalid arguments length: must be 1 (now %v)", len(args))
 				return
 			}
 			val = args[0].Raw
@@ -68,14 +71,14 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			return
 		},
 		"join": func(cp *configParser, pn *stringParsing.ParsedNode,
-			args []stringParsing.ParsedNode) (vtype string, val string, err error) {
+			args []stringParsing.ParsedNode) (vtype string, val string, err core.ErrorInterface) {
 			join := ""
 			for _, arg := range args {
 				var aT string
 				var strv string
 				aT, _, _, _, strv, _, err = cp.parseType(&arg, "string", arg.Raw)
 				if aT != "string" {
-					err = fmt.Errorf("Invalid argument: need string, got %v", aT)
+					err = core.Err(shared.RuntimeError, "Invalid argument: need string, got %v", aT)
 					return
 				}
 				join += strv
@@ -85,9 +88,9 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			return
 		},
 		"env": func(cp *configParser, pn *stringParsing.ParsedNode,
-			args []stringParsing.ParsedNode) (vtype string, val string, err error) {
+			args []stringParsing.ParsedNode) (vtype string, val string, err core.ErrorInterface) {
 			if len(args) != 3 {
-				err = fmt.Errorf("env: need 3 args, got %d", len(args))
+				err = core.Err(shared.RuntimeError, "env: need 3 args, got %d", len(args))
 				return
 			}
 
@@ -117,9 +120,9 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			return
 		},
 		"get": func(cp *configParser, pn *stringParsing.ParsedNode,
-			args []stringParsing.ParsedNode) (vtype string, val string, err error) {
+			args []stringParsing.ParsedNode) (vtype string, val string, err core.ErrorInterface) {
 			if len(args) != 2 {
-				err = fmt.Errorf("got: need 2 args, got %d", len(args))
+				err = core.Err(shared.RuntimeError, "got: need 2 args, got %d", len(args))
 				return
 			}
 
@@ -142,7 +145,7 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 					var ok bool
 					obj, ok = obj.InnerV[to]
 					if !ok {
-						err = fmt.Errorf("Can't get: %v", to)
+						err = core.Err(shared.RuntimeError, "Can't get: %v", to)
 						return
 					}
 				} else {

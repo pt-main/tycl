@@ -1,4 +1,4 @@
-# TYCL — Typed Config Language
+# TYCL - Typed Config Language
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/pt-main/tycl.svg)](https://pkg.go.dev/github.com/pt-main/tycl)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -9,32 +9,32 @@ go get github.com/pt-main/tycl
 ```
 
 **TYCL** is a typed configuration language for Go.  
-It provides strong typing, contracts (schemas), and a readable syntax — with no code generation and no `interface{}`.
+It provides strong typing, contracts (schemas), and a readable syntax – without code generation and without `interface{}`.
 
 ---
 
 ## Why TYCL?
 
-| Format | Problems | TYCL solves |
-|--------|----------|-------------|
-| **JSON** | no comments, everything via `interface{}`, no validation | strong typing, comments, contracts |
-| **YAML** | whitespace‑sensitive, no typing | explicit types, deterministic parsing |
-| **TOML** | limited, no schemas | contracts, flexible structures |
+| Format  | Problems                                                                 | TYCL solves                                |
+|---------|--------------------------------------------------------------------------|--------------------------------------------|
+| **JSON**| no comments, everything via `interface{}`, no validation                 | strong typing, comments, contracts         |
+| **YAML**| whitespace‑sensitive, no typing                                         | explicit types, deterministic parsing      |
+| **TOML**| limited, no schemas                                                     | contracts, flexible structures             |
 
-TYCL gives you **70% of the power of complex configuration languages** at **30% of the complexity**.  
-It works both as a **primary configuration format** and as an **intermediate representation** — you can write TYCL and then generate JSON, YAML, or TOML for integration with other systems.
+TYCL gives you **70% of the power** of complex configuration languages with **30% of the complexity**.  
+It works both as a **primary format** for configs and as an **intermediate representation** – you can write in TYCL and then generate JSON, YAML, or TOML for integration with other systems.
 
 ---
 
 ## Installation
 
-### As a library (Go module)
+### As a library
 
 ```bash
 go get github.com/pt-main/tycl
 ```
 
-Use it in your code:
+Use in code:
 
 ```go
 import "github.com/pt-main/tycl"
@@ -46,9 +46,9 @@ if err != nil {
 port := cfg.IntV["port"] // 8080
 ```
 
-### CLI (command‑line tool)
+### CLI
 
-Download a binary from the [releases](https://github.com/pt-main/tycl/releases) page, or install via `go install`:
+Download the binary from [releases](https://github.com/pt-main/tycl/releases) or install via `go install`:
 
 ```bash
 go install github.com/pt-main/tycl/tycl@latest
@@ -56,13 +56,86 @@ go install github.com/pt-main/tycl/tycl@latest
 
 Commands:
 
-- `tycl valid <config> [contract]` — validate a config against a contract.
-- `tycl syntax <file...>` — check syntax and types (without a contract).
-- `tycl fmt <type> <file...>` — format (`conf` / `contract`).
-- `tycl gen <input> <output> <json|yaml|toml>` — generate a target format.
-- `tycl contract <input> <output> <type>` — generate a contract from a config.
+- `tycl valid <config> [contract]` – validate a config against a contract.
+- `tycl syntax <file...>` – check syntax and types (without a contract).
+- `tycl fmt <type> <file...>` – formatting.
+- `tycl gen <input> <output> <json|yaml|toml>` – generate target format.
+- `tycl contract <input> <output> <type>` – generate a contract from a config.
+- `tycl file --path=<path> <cmd> <args...>` – edit a file directly via CLI (more details later).
 
-All commands support the `--strict-keys` flag — it forbids duplicate keys (of any type) within the same object.
+Some commands support the `--strict-keys` flag – it forbids duplicate keys (of any type) within the same object (see CLI docs – `tycl help`).
+
+### Editing configs via CLI
+
+TYCL allows you to edit configs directly from the terminal without opening a text editor. This is convenient for scripts, quick fixes, automation, and working with TYCL outside Go.
+
+**Syntax:**
+```bash
+tycl file <subcommand> [args...] --path=<config-file> [--strict-keys]
+```
+
+**Global flags:**
+- `--path` – path to the TYCL config (required)
+- `--strict-keys` – forbids duplicate keys (optional)
+
+**Available subcommands:**
+
+| Command     | Description                              | Example                                               |
+|-------------|------------------------------------------|-------------------------------------------------------|
+| `get <type> <key>` | Print the value of a key          | `tycl file get --path=config.tycl int port`          |
+| `set <type> <key> <value>` | Set a key to a value      | `tycl file set --path=config.tycl int port 9090`     |
+| `remove <type> <key>` | Remove a key                    | `tycl file remove --path=config.tycl int port`       |
+| `structure`  | Show the structure of the config        | `tycl file structure --path=config.tycl`              |
+| `help`       |                                        | `tycl help`                                           |
+
+#### Examples
+
+**Getting a value:**
+```bash
+tycl file get --path=config.tycl int port
+```
+
+**Setting a scalar value:**
+```bash
+tycl file set --path=config.tycl int port 9090
+tycl file set --path=config.tycl string host "localhost"
+tycl file set --path=config.tycl null timeout int
+```
+
+**Setting an array:**
+```bash
+tycl file set --path=config.tycl ints ports "8080,8081,8082"
+tycl file set --path=config.tycl strings names "dev,prod,stage"
+```
+
+**Setting an object:**
+```bash
+tycl file set --path=config.tycl object server "{host: string = \"127.0.0.1\", port: int = 8080}"
+```
+
+**Setting an array of objects:**
+```bash
+tycl file set --path=config.tycl objects servers "[{host: string = \"a\", port: int = 80}, {host: string = \"b\", port: int = 443}]"
+```
+
+**Removing a key:**
+```bash
+tycl file remove --path=config.tycl int port
+tycl file remove --path=config.tycl object server
+```
+
+**Viewing structure:**
+```bash
+tycl file structure --path=config.tycl
+# Output:
+# Config structure:
+#   int:
+#     port
+#   string:
+#     host
+#   objects:
+#     servers
+```
 
 ---
 
@@ -81,7 +154,7 @@ host: string = "localhost",
 
 ### Null values
 
-TYCL allows you to specify that a field exists but its value is absent, while **the field type is known**:
+TYCL allows a field to exist but have no value, while **the type of the field is still known**:
 
 ```tycl
 timeout: int = null   /* field timeout exists but is null, type int */
@@ -89,14 +162,14 @@ timeout: int = null   /* field timeout exists but is null, type int */
 
 **Rules for null:**
 
-1. **Type is mandatory** — `null` always comes with a type (`int`, `string`, etc.).
-2. **Uniqueness of null** — there can be **only one** null value for a given name.  
+1. **Type is required** – `null` is always accompanied by a type.
+2. **Uniqueness of null** – for a given name there can be **only one** null‑valued entry.  
    If you declare `timeout: int = null`, you cannot add `timeout: string = null`, but you can add `timeout: string = "5s"` (not null).
-3. **Null ≠ missing field** — `key: int = null` means the field exists but its value is not set. If the field is not mentioned in the config at all, it is simply absent (and the contract will notice that).
+3. **Null ≠ missing field** – `key: int = null` means the field is present but unset. If the field is not mentioned in the config at all, it is simply absent (and the contract will notice that).
 
 ### Arrays
 
-Arrays are strictly typed and denoted by the **type in plural form**. The array type is **mandatory**:
+Arrays are strictly typed and denoted by the **plural form of the type**. The array type is **required**:
 
 ```tycl
 ports: ints = [8080, 8081],
@@ -109,7 +182,7 @@ servers: objects = [
 ]
 ```
 
-All elements of an array must have the same type.
+All elements of an array must be of the same type.
 
 ### Objects (nested)
 
@@ -135,7 +208,7 @@ app: object = {
 
 ### Comments
 
-**Block comments** `/* ... */` are supported as documentation, and they may be placed **only at the beginning or at the end of an object**.
+**Block comments** `/* ... */` are supported as documentation and may be placed strictly **at the beginning or at the end of an object**.
 
 ```tycl
 server: object = {
@@ -150,32 +223,32 @@ Line comments (`//`) are ignored during translation and removed by the formatter
 
 ### Actions
 
-TYCL supports calling functions directly in values. Actions allow you to read files, substitute environment variables, convert types, join strings, and reference other config values.
+TYCL supports calling functions directly in values. Actions allow reading files, substituting environment variables, transforming types, joining strings, and referencing other config values.
 
 **Syntax:** `action_name(arguments)`
 
 **Available actions:**
 
-| Action | Description | Example |
-|--------|-------------|---------|
-| `file("path")` | Reads the contents of a file as a string | `data: string = file("config.json")` |
-| `env("VAR", "default", "type")` | Gets an environment variable (with type) | `port: int = env("PORT", "8080", "int")` |
-| `join(...)` | Concatenates strings | `name: string = join("auth", "-", "service")` |
-| `asString(value)` | Converts a value to a string | `debug: string = asString({ debug: bool = true })` |
-| `asObject(string)` | Converts a string (containing TYCL code) to an object | `db: object = asObject(file("db.tycl"))` |
-| `get("path", "type")` | Gets a value from the config by dot‑notation path and type | `host: string = get("server.host", "string")` |
+| Action         | Description                                                      | Example                                                           |
+|----------------|------------------------------------------------------------------|-------------------------------------------------------------------|
+| `file("path")` | Reads the content of a file as a string                         | `data: string = file("config.json")`                             |
+| `env("VAR", "default", "type")` | Gets an environment variable (with type conversion) | `port: int = env("PORT", "8080", "int")`                         |
+| `join(...)`    | Concatenates strings                                            | `name: string = join("auth", "-", "service")`                    |
+| `asString(value)` | Converts a value to a string                                 | `debug: string = asString({ debug: bool = true })`               |
+| `asObject(string)` | Parses a string (containing TYCL code) into an object        | `db: object = asObject(file("db.tycl"))`                         |
+| `get("path", "type")` | Gets a value from the config by dot‑path and type            | `host: string = get("server.host", "string")`                    |
 
 #### Detailed action descriptions
 
 - **`file("path")`**  
-  Reads the contents of the file at the given path and returns it as a string. Useful for embedding external configs or data.
+  Reads the file at the given path and returns its content as a string. Useful for embedding external configs or data.
 
   ```tycl
   config: string = file("settings.json")
   ```
 
 - **`env("VAR", "default", "type")`**  
-  Gets the value of an environment variable. If the variable is not set or empty, the default value is used. The third argument specifies the expected type (`string`, `int`, `bool`, `float`) — the result will be coerced to that type.
+  Gets the value of an environment variable. If the variable is not set or empty, the default is used. The third argument specifies the expected type – the result will be converted to that type.
 
   ```tycl
   port: int = env("PORT", "8080", "int")
@@ -184,7 +257,7 @@ TYCL supports calling functions directly in values. Actions allow you to read fi
   ```
 
 - **`join(...)`**  
-  Concatenates an arbitrary number of string arguments into a single string. Arguments can be literals or results of other actions.
+  Concatenates any number of string arguments into a single string. Arguments can be literals or results of other actions.
 
   ```tycl
   fullName: string = join("Mr. ", "John", " ", "Doe")
@@ -192,7 +265,7 @@ TYCL supports calling functions directly in values. Actions allow you to read fi
   ```
 
 - **`asString(value)`**  
-  Converts the given value (object, number, boolean) into a string. Usually used for debugging or creating string representations of complex structures.
+  Converts the given value to a string. Typically used for debugging or creating string representations of complex structures.
 
   ```tycl
   configStr: string = asString({ debug: bool = true, level: int = 2 })
@@ -207,7 +280,7 @@ TYCL supports calling functions directly in values. Actions allow you to read fi
   ```
 
 - **`get("path", "type")`**  
-  Extracts a value from any part of the config (path syntax: `[root config].[nested object].[...]`, arrays are not supported) using dot‑notation (e.g., `"database.host"`) and coerces it to the specified type. The path can traverse nested objects. This allows reusing values in different parts of the config.
+  Extracts a value from any part of the config (path syntax: `[main object].[nested object].[...]`, `[main key]`, arrays not supported) by a dot‑separated path (e.g., `"database.host"`) and converts it to the specified type. The path can go through nested objects. This allows reusing values across the config.
 
   ```tycl
   {
@@ -256,34 +329,34 @@ mainHost: string = get("server.host", "string")
 
 ### Important rules
 
-1. **Types in keys are optional**  
-   If the type is omitted, it is inferred from the value:  
+1. **Type optionality in keys**  
+   If a type is omitted, it is inferred from the value:  
    `key = "text"` → `string`, `key = 42` → `int`.  
-   **Exception:** for arrays the type is **mandatory** (`ints`, `strings`, etc.).
+   **Exception:** for arrays, the type is **required**.
 
 2. **Duplicate keys with different types**  
-   Allowed, but **not recommended**, because when generating JSON/YAML/TOML, a conflict will cause an error.  
+   Allowed, but **not recommended**, because when generating JSON/YAML/TOML a conflict will cause an error.  
    ```tycl
    port: int = 8080,
    port: string = "8080"   /* allowed, but bad practice */
    ```
-   To forbid duplicate keys, use the `--strict-keys` flag in the CLI (the CLI documentation clearly states where this is allowed).
+   To forbid duplicate keys, use the `--strict-keys` flag in the CLI (the CLI docs clearly state where it is allowed).
 
 3. **Null**  
-   There can be only one key with a given name if it equals `null` (regardless of type).
+   There can be only one key with a given name if it is equal to `null` (regardless of type).
    ```tycl
    timeout: int = null,     /* ok */
-   timeout: string = null,  /* error: null already exists for timeout */
+   timeout: string = null,  /* error: already have null for timeout */
    timeout: string = "5s"   /* ok, this is not null */
    ```
 
-The strict keys feature (available in the CLI and `tycl.Process`) forbids rules 2 and 3, making all keys unique.
+The strict keys feature (available in the CLI / `tycl.Process`) forbids rules 2 and 3, making all keys unique.
 
 ---
 
 ## Config structure (after parsing)
 
-The `tycl.Process` function returns a `*Config` object that contains separate maps for each data type. This lets you access values **without type assertions**:
+The `tycl.Process` function returns a `*Config` object, which contains separate maps for each data type. This allows accessing values **without type assertions**:
 
 ```go
 type Config struct {
@@ -291,7 +364,7 @@ type Config struct {
     FloatV  map[string]float64
     BoolV   map[string]bool
     StringV map[string]string
-    NullV   map[string]string           // key → type of null value
+    NullV   map[string]string           // key → type of null‑value
 
     IntArrV    map[string][]int
     FloatArrV  map[string][]float64
@@ -326,15 +399,15 @@ tomlStr, err := generation.Toml(cfg)
 tyclStr, err := generation.Tycl(cfg)        // back to TYCL
 ```
 
-This is useful when you load a config, modify it in code, and want to save it in another format.
+This is useful if you load a config, modify it in code, and want to save it in another format.
 
-Important: for TOML generation, the config must have no null values (due to TOML's limitations).
+Important: for TOML generation, null values must be absent from the config (due to TOML limitations).
 
 ---
 
 ## Contracts (schemas)
 
-A contract describes the expected structure of a config. It is written in the same language, but instead of values, only types are given.
+A contract describes the expected structure of a config. It is written in the same language, but only types (no values) are given.
 
 ```tycl
 strict {
@@ -355,17 +428,17 @@ strict {
 
 **Strictness levels:**
 
-- `dynamic` — no validation (any structure allowed).
-- `flexible` — all listed fields must be present, extra fields are allowed.
-- `strict` — exact match (no extra fields allowed).
+- `dynamic` – no validation (any structure is allowed).
+- `flexible` – all listed fields must be present, extra fields are allowed.
+- `strict` – exact match (no extra fields allowed).
 
-Contracts support nesting for objects and **arrays of objects** (as shown for `test1`). For arrays of objects, the contract applies to every element of the array.
+Contracts support nesting for objects and **arrays of objects** (as shown in the example for `test1`). For object arrays, the contract applies to every element of the array.
 
 ---
 
 ## Generating other formats via CLI
 
-The CLI tool allows exporting a config to JSON, YAML, or TOML without writing any code:
+The CLI tool allows exporting a config to JSON, YAML, or TOML without writing code:
 
 ```bash
 tycl gen config.tycl out.json json
@@ -445,23 +518,25 @@ strict {
 }
 ```
 
-If you do not need a contract, pass `""` or `"dynamic{}"` — validation will be skipped.
+If you don't need a contract, pass `""` or `"dynamic{}"` – validation will be skipped.
 
-## VSCode Plugin
+---
 
-Download the plugin from the releases page and install it.
+## Vscode Plugin
+
+Download the plugin from the release and install it.
 
 Plugin features:
 
 - Syntax highlighting for contracts and configs (file type is not checked)
-- Autocompletion for syntax (actions, types, contract types are completed)
+- Autocompletion for syntax (actions, types, contract types)
 
 ---
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE) for details.
+Apache 2.0 – see [LICENSE](LICENSE) for details.
 
 ---
 
-By Pt, 2026, written in Lc and uses Tap.
+By Pt, 2026, written in Lc and using Tap.

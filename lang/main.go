@@ -1,19 +1,18 @@
 package lang
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
+	"github.com/pt-main/lc/engine/core"
 	"github.com/pt-main/lc/parsing/stringParsing"
 	"github.com/pt-main/lc/tooling/astools"
-	"github.com/pt-main/tap/color"
 	"github.com/pt-main/tycl/lang/lcproc"
 	"github.com/pt-main/tycl/shared"
 	"github.com/pt-main/tycl/utils"
 )
 
-func ParseConf(conf *shared.Config, code string, strictKeys bool) (*shared.Config, error) {
+func ParseConf(conf *shared.Config, code string, strictKeys bool) (*shared.Config, core.ErrorInterface) {
 	p := lcproc.NewParser()
 	pn, err := p.Parse(code)
 	if err != nil {
@@ -35,18 +34,18 @@ type configParser struct {
 	Node       *stringParsing.ParsedNode
 }
 
-func (cp *configParser) setValue(vtype, value, key string, valN *stringParsing.ParsedNode) (err error) {
+func (cp *configParser) setValue(vtype, value, key string, valN *stringParsing.ParsedNode) (err core.ErrorInterface) {
 	if value == "null" {
 		switch vtype {
 		case "object":
-			err = fmt.Errorf("Object can't be null")
+			err = core.Err(shared.RuntimeError, "Object can't be null")
 			return
 		case "null":
-			err = fmt.Errorf("Invalid syntax: need type assertion if value is null")
+			err = core.Err(shared.RuntimeError, "Invalid syntax: need type assertion if value is null")
 			return
 		default:
 			if _, ok := cp.Conf.NullV[key]; ok {
-				return fmt.Errorf("Can't add null value: key duplicate")
+				return core.Err(shared.RuntimeError, "Can't add null value: key duplicate")
 			}
 			cp.Conf.NullV[key] = vtype
 			return
@@ -61,27 +60,27 @@ func (cp *configParser) setValue(vtype, value, key string, valN *stringParsing.P
 		switch vtype {
 		case "string":
 			if _, ok := cp.Conf.StringV[key]; ok {
-				return fmt.Errorf("Can't add string: key is already added")
+				return core.Err(shared.RuntimeError, "Can't add string: key is already added")
 			}
 			cp.Conf.StringV[key] = stringv
 		case "int":
 			if _, ok := cp.Conf.IntV[key]; ok {
-				return fmt.Errorf("Can't add int: key is already added")
+				return core.Err(shared.RuntimeError, "Can't add int: key is already added")
 			}
 			cp.Conf.IntV[key] = intv
 		case "bool":
 			if _, ok := cp.Conf.BoolV[key]; ok {
-				return fmt.Errorf("Can't add bool: key is already added")
+				return core.Err(shared.RuntimeError, "Can't add bool: key is already added")
 			}
 			cp.Conf.BoolV[key] = boolv
 		case "float":
 			if _, ok := cp.Conf.FloatV[key]; ok {
-				return fmt.Errorf("Can't add float: key is already added")
+				return core.Err(shared.RuntimeError, "Can't add float: key is already added")
 			}
 			cp.Conf.FloatV[key] = floatv
 		case "object":
 			if _, ok := cp.Conf.InnerV[key]; ok {
-				return fmt.Errorf("Can't add object: key is already added")
+				return core.Err(shared.RuntimeError, "Can't add object: key is already added")
 			}
 			cp.Conf.InnerV[key] = objectv
 		}
@@ -94,7 +93,7 @@ func (cp *configParser) setValue(vtype, value, key string, valN *stringParsing.P
 	return nil
 }
 
-func (cp *configParser) setArray(vtype, key string, valN *stringParsing.ParsedNode) (err error) {
+func (cp *configParser) setArray(vtype, key string, valN *stringParsing.ParsedNode) (err core.ErrorInterface) {
 	startIdx := astools.FindChildIndex(valN, "LBRACK") + 1
 	finalIdx := astools.FindChildIndex(valN, "RBRACK")
 	eltype := vtype[:len(vtype)-1]
@@ -132,7 +131,7 @@ func (cp *configParser) setArray(vtype, key string, valN *stringParsing.ParsedNo
 	return
 }
 
-func (cp *configParser) ParseBody() (conf *shared.Config, err error) {
+func (cp *configParser) ParseBody() (conf *shared.Config, err core.ErrorInterface) {
 	defer func() {
 		conf = cp.Conf
 	}()
@@ -146,22 +145,25 @@ func (cp *configParser) ParseBody() (conf *shared.Config, err error) {
 	comments := astools.FindChildren(object, "COMMENT")
 
 	keys := []string{}
+
+	errs := []core.ErrorInterface{}
 	for idx, pair := range pairs {
 		defer func() {
-			if err != nil {
-				err = fmt.Errorf(color.Set(
-					"[?RD]Error in: [?RT]\n    %v: '%v': \n[?RD]%v[?RT]",
-				), idx, pair.Raw, err)
+			if len(errs) > 0 {
+				err = core.Err(shared.ContextedError, "ERR").
+					WithMeta("idx", idx).
+					WithMeta("raw", pair.Raw).
+					WithMeta("errs", errs)
 			}
 			return
 		}()
 		key := astools.FindChild(&pair, "IDENT").Raw
 		if cp.StrictKeys {
 			if slices.Contains(keys, key) {
-				err = fmt.Errorf(
+				errs = append(errs, core.Err(shared.ProcessingError,
 					"Can't add key duplicate (with same or not same type): stcict keys mode enabled",
-				)
-				return
+				).WithMeta("raw", pair.Raw).WithMeta("idx", idx))
+				continue
 			}
 			keys = append(keys, key)
 		}
@@ -178,11 +180,15 @@ func (cp *configParser) ParseBody() (conf *shared.Config, err error) {
 		}
 		vtype = strings.ToLower(vtype)
 		if !utils.IsTypeValid(vtype) && vtype != "action" {
-			err = fmt.Errorf("Invalid value type: %v", vtype)
-			return
+			errs = append(errs, core.Err(shared.ProcessingError, "Invalid value type: %v", vtype).
+				WithMeta("raw", pair.Raw).WithMeta("idx", idx))
+			continue
 		}
-		if err = cp.setValue(vtype, value, key, valueNode); err != nil {
-			return
+		err = cp.setValue(vtype, value, key, valueNode)
+		if err != nil {
+			errs = append(errs, core.Wrap(shared.ProcessingError, err, core.GetRealError(err)).
+				WithMeta("raw", pair.Raw).WithMeta("idx", idx))
+			continue
 		}
 	}
 

@@ -1,17 +1,18 @@
 package format
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
+	"github.com/pt-main/lc/engine/core"
 	"github.com/pt-main/lc/parsing/stringParsing"
 	"github.com/pt-main/lc/tooling/astools"
 	lcprocC "github.com/pt-main/tycl/contract/lcproc"
 	lcprocL "github.com/pt-main/tycl/lang/lcproc"
+	"github.com/pt-main/tycl/shared"
 )
 
-func FormContract(code string) (string, error) {
+func FormContract(code string) (string, core.ErrorInterface) {
 	p := lcprocC.NewParser()
 	pn, err := p.Parse(code)
 	if err != nil {
@@ -20,7 +21,7 @@ func FormContract(code string) (string, error) {
 	return parseUniversal(&pn[0], FormContract)
 }
 
-func FormConfig(code string) (string, error) {
+func FormConfig(code string) (string, core.ErrorInterface) {
 	p := lcprocL.NewParser()
 	pn, err := p.Parse(code)
 	if err != nil {
@@ -29,7 +30,7 @@ func FormConfig(code string) (string, error) {
 	return parseUniversal(&pn[0], FormConfig)
 }
 
-func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string, error)) (string, error) {
+func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string, core.ErrorInterface)) (string, core.ErrorInterface) {
 	// find pairs
 	// declarate res variable with start of tycl object
 	// if object is contract - add contract type to res and set IS_CONTRACT = true
@@ -107,7 +108,7 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 				}
 
 				if ctype == "array" && IS_CONTRACT {
-					return "", fmt.Errorf("Invalid contract: array at: \n%v", objChild.Raw)
+					return "", core.Err(shared.RuntimeError, "Invalid contract: array at: \n%v", objChild.Raw)
 				}
 
 				if ctype == "array" {
@@ -134,7 +135,7 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 							if achild.Switch == "object" {
 								child, err = form(achild.Raw)
 								if err != nil {
-									return "", err
+									return "", core.Wrap(shared.WrappedError, err, err.Error())
 								}
 							}
 							// add tabs to lines

@@ -1,10 +1,10 @@
 package lang
 
 import (
-	"fmt"
-
+	"github.com/pt-main/lc/engine/core"
 	"github.com/pt-main/lc/parsing/stringParsing"
 	"github.com/pt-main/lc/tooling/astools"
+	"github.com/pt-main/tycl/shared"
 )
 
 func GetArgs(actionNode *stringParsing.ParsedNode) []stringParsing.ParsedNode {
@@ -43,17 +43,18 @@ func GetArgs(actionNode *stringParsing.ParsedNode) []stringParsing.ParsedNode {
 	return args
 }
 
-func (cp *configParser) parseAction(pn *stringParsing.ParsedNode) (vtype string, val string, err error) {
+func (cp *configParser) parseAction(pn *stringParsing.ParsedNode) (vtype string, val string, err core.ErrorInterface) {
 	args := GetArgs(pn)
 	action := astools.FindChild(pn, "IDENT").Raw
 	fn, ok := Actions()[action]
 	if !ok {
-		err = fmt.Errorf("Unrecognized action: %v", action)
+		err = core.Err(shared.RuntimeError, "Unrecognized action: %v", action)
 		return
 	}
-	vtype, val, err = fn(cp, pn, args)
-	if err == nil {
+	var err_ error
+	vtype, val, err_ = fn(cp, pn, args)
+	if err_ == nil {
 		return
 	}
-	return "ERROR", "ERROR", fmt.Errorf("Can't parse action (for %v): %v", pn.Raw, err)
+	return "", "", core.Wrap(shared.RuntimeError, err_, "Can't parse action (for %v)", pn.Raw)
 }
