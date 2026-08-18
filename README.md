@@ -464,8 +464,4 @@ Apache 2.0 — see [LICENSE](LICENSE) for details.
 
 ---
 
-<<<<<<< Updated upstream
 By Pt, 2026, written in Lc and uses Tap.
-=======
-By Pt, 2026, written in Lc and uses Tap.
->>>>>>> Stashed changes
