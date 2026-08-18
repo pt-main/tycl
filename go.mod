@@ -4,8 +4,8 @@ go 1.24.13
 
 require (
 	github.com/dlclark/regexp2 v1.12.0
-	github.com/pt-main/lc v1.5.3
-	github.com/pt-main/tap v1.4.7
+	github.com/pt-main/lc v1.5.4
+	github.com/pt-main/tap v1.4.8
 )
 
 require (
