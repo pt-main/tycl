@@ -98,15 +98,15 @@ func (cp *configParser) setArray(vtype, key string, valN *stringParsing.ParsedNo
 	finalIdx := astools.FindChildIndex(valN, "RBRACK")
 	eltype := vtype[:len(vtype)-1]
 	switch eltype {
-	case "strings":
+	case "string":
 		cp.Conf.StringArrV[key] = make([]string, 0)
-	case "ints":
+	case "int":
 		cp.Conf.IntArrV[key] = make([]int, 0)
-	case "floats":
+	case "float":
 		cp.Conf.FloatArrV[key] = make([]float64, 0)
-	case "bools":
+	case "bool":
 		cp.Conf.BoolArrV[key] = make([]bool, 0)
-	case "objects":
+	case "object":
 		cp.Conf.InnerArrV[key] = make([]*shared.Config, 0)
 	}
 	for i := startIdx; i < finalIdx; i += 2 {

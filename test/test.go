@@ -13,35 +13,11 @@ func main() {
 	conf := `
 {
 	/* doc 1 */ 
-	enviroment: string = {
-		var1:string="b"
-	},
-    port: int = 8080,
-    host: string = "localhost",
-    timeout: int = -1,
-    test1: objects = [
-        { 
-			/* doc 3 */ 
-			key: string = "a" 
-		},
-        { 
-			/* doc 4 */ 
-			key = get("enviroment.var1", "string")
-		},
-    ],
-	key2: int = 'str',
+	test: ints = [],
 	/* doc 2 */
 }`
 
-	contract := `
-flexible {
-    port: int,
-    host: string,
-    timeout: int,
-    test1: objects = flexible {
-        key: string
-    }
-}`
+	contract := ``
 
 	cfg, err := tycl.Process(conf, contract, false)
 	if err != nil {
