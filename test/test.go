@@ -13,7 +13,8 @@ func main() {
 	conf := `
 {
 	/* doc 1 */ 
-	test: ints = [],
+	test: ints = [0],
+	el0 = getEll()
 	/* doc 2 */
 }`
 
