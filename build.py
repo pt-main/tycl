@@ -7,14 +7,11 @@ All settings are configurable via command-line arguments.
 """
 
 import argparse
+import os
 import subprocess
 import sys
-import os
-import shutil
 from pathlib import Path
-import re
 
-# ----------------------------------------------------------------------
 # Default values
 DEFAULT_OUTPUT_DIR = "./build"
 DEFAULT_NAME_TEMPLATE = "{project}-{os}-{arch}-{version}"
@@ -32,7 +29,7 @@ DEFAULT_PLATFORMS = [
 ]
 DEFAULT_VERSION = "final"
 
-# ----------------------------------------------------------------------
+
 def parse_platforms(platforms_str):
     """Parse a comma-separated list of 'os/arch' into a list of tuples."""
     if not platforms_str:
@@ -119,7 +116,7 @@ def build_for_platform(project_path, output_dir, goos, goarch, name_template, ve
         print(f"Exception while building for {goos}/{goarch}: {e}")
         return False
 
-# ----------------------------------------------------------------------
+
 def main():
     parser = argparse.ArgumentParser(
         description="Universal Go cross-compilation script",

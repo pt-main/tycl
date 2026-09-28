@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pt-main/lc/engine/core"
-	"github.com/pt-main/lc/parsing/stringParsing"
+	"github.com/pt-main/lc/v2/engine/core"
+	"github.com/pt-main/lc/v2/parsing/stringParsing"
 	"github.com/pt-main/tycl/shared"
 )
 
@@ -21,16 +21,16 @@ func (cp *configParser) parseType(node *stringParsing.ParsedNode, vtype, value s
 	}
 	vtype = strings.ToLower(vtype)
 	restype = vtype
-	var err_ error
+	var cause error
 	switch vtype {
 	case "string":
-		stringv, err_ = parseStringValue(value)
-		if err == nil {
+		stringv, cause = parseStringValue(value)
+		if cause == nil {
 			return
 		}
 	case "int":
-		intv, err_ = strconv.Atoi(value)
-		if err_ == nil {
+		intv, cause = strconv.Atoi(value)
+		if cause == nil {
 			return
 		}
 	case "bool":
@@ -42,26 +42,36 @@ func (cp *configParser) parseType(node *stringParsing.ParsedNode, vtype, value s
 			return
 		}
 	case "float":
-		floatv, err_ = strconv.ParseFloat(value, 64)
-		if err_ == nil {
+		floatv, cause = strconv.ParseFloat(value, 64)
+		if cause == nil {
 			return
 		}
 	case "object":
 		var obj *shared.Config
 		newconf := shared.NewNilConfig()
 		newconf.MainConf = cp.Conf
-		obj, err = ParseConf(newconf, value, cp.StrictKeys)
+		obj, err = ParseConfAt(newconf, value, cp.StrictKeys, cp.offsetOf(node))
 		if err == nil {
 			obj.Name = "inner"
 			objectv = obj
 			return
 		}
 	}
-	if err_ != nil {
-		err = core.Wrap(shared.WrappedError, err_, "Parsing: %v", err_.Error())
+	if cause != nil {
+		err = core.Wrap(shared.WrappedError, cause, "Parsing: %v", cause.Error())
 	}
-	err = core.Wrap(shared.RuntimeError, err, "Invalid value (type of %v): '%v'", vtype, value)
+	err = core.Err(shared.RuntimeError, "Invalid value for %v: %v", vtype, describeValue(value)).
+		WithMeta("hint", valueSuggestion(vtype, value))
 	return
+}
+
+// describeValue renders a value for an error message without dumping a
+// multi-line string into the terminal.
+func describeValue(value string) string {
+	if strings.ContainsAny(value, "\n") {
+		return "a multi-line literal"
+	}
+	return "'" + value + "'"
 }
 
 func parseStringValue(value string) (stringv string, err core.ErrorInterface) {
@@ -71,14 +81,15 @@ func parseStringValue(value string) (stringv string, err core.ErrorInterface) {
 		value = strings.ReplaceAll(value, "\\'", "'")
 	}
 	if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
-		var err_ error
-		value, err_ = strconv.Unquote(value)
-		if err_ == nil {
+		var cause error
+		value, cause = strconv.Unquote(value)
+		if cause == nil {
 			stringv = value
 			return
 		}
-		err = core.Wrap(shared.WrappedError, err_, err_.Error())
+		err = core.Wrap(shared.WrappedError, cause, "%v", cause)
+		return
 	}
-	err = core.Err(shared.RuntimeError, "Invalid string format")
+	err = core.Err(shared.RuntimeError, "Invalid string format: a value must be wrapped in quotes")
 	return
 }

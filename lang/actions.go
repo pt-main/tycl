@@ -5,21 +5,21 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pt-main/lc/engine/core"
-	"github.com/pt-main/lc/parsing/stringParsing"
+	"github.com/pt-main/lc/v2/engine/core"
+	"github.com/pt-main/lc/v2/parsing/stringParsing"
 	"github.com/pt-main/tycl/generation"
 	"github.com/pt-main/tycl/shared"
 	"github.com/pt-main/tycl/utils"
 )
 
-type actionMap map[string]func(
+// actionFunc evaluates one action call found in a value position.
+type actionFunc func(
 	cp *configParser, pn *stringParsing.ParsedNode, args []stringParsing.ParsedNode,
 ) (vtype string, val string, err core.ErrorInterface)
 
-func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, args []stringParsing.ParsedNode) (
-	vtype, val string, err core.ErrorInterface,
-) {
-	return actionMap{
+// Actions lists the built-in actions callable in a value position.
+func Actions() map[string]actionFunc {
+	return map[string]actionFunc{
 		"file": func(cp *configParser, pn *stringParsing.ParsedNode,
 			args []stringParsing.ParsedNode) (vtype, val string, err core.ErrorInterface) {
 			if len(args) != 1 {
@@ -36,10 +36,10 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			if err != nil {
 				return
 			}
-			var err_ error
-			val, err_ = utils.OpenF(strv)
-			if err_ != nil {
-				err = core.Wrap(shared.WrappedError, err_, err_.Error())
+			var cause error
+			val, cause = utils.OpenF(strv)
+			if cause != nil {
+				err = core.Wrap(shared.WrappedError, cause, "%v", cause)
 				return
 			}
 			val = utils.ReprStringValue(val)
@@ -131,9 +131,9 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 				err = core.Err(shared.RuntimeError, "Get: first arg must be string (path)")
 				return
 			}
-			path, err_ := parseStringValue(pathNode.Raw)
-			if err_ != nil {
-				err = core.Wrap(shared.WrappedError, err_, "Get: invalid path")
+			path, cause := parseStringValue(pathNode.Raw)
+			if cause != nil {
+				err = core.Wrap(shared.WrappedError, cause, "Get: invalid path")
 				return
 			}
 
@@ -142,9 +142,9 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 				err = core.Err(shared.RuntimeError, "Get: second arg must be string (type)")
 				return
 			}
-			expectedType, err_ := parseStringValue(typeNode.Raw)
-			if err_ != nil {
-				err = core.Wrap(shared.WrappedError, err_, "Get: invalid type")
+			expectedType, cause := parseStringValue(typeNode.Raw)
+			if cause != nil {
+				err = core.Wrap(shared.WrappedError, cause, "Get: invalid type")
 				return
 			}
 			expectedType = strings.ToLower(expectedType)
@@ -163,7 +163,7 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			lastSeg := segments[len(segments)-1]
 			isIndex := false
 			var index int
-			if i, err_ := strconv.Atoi(lastSeg); err_ == nil {
+			if i, cause := strconv.Atoi(lastSeg); cause == nil {
 				isIndex = true
 				index = i
 			}
@@ -266,9 +266,9 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 						err = core.Err(shared.RuntimeError, "Get: index %d out of range for array %s", index, arrayName)
 						return
 					}
-					objCode, err_ := generation.Tycl(arr[index])
-					if err_ != nil {
-						err = core.Wrap(shared.WrappedError, err_, "Get: cannot generate object representation")
+					objCode, cause := generation.Tycl(arr[index])
+					if cause != nil {
+						err = core.Wrap(shared.WrappedError, cause, "Get: cannot generate object representation")
 						return
 					}
 					resultStr = objCode
@@ -317,9 +317,9 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 				case "object":
 					if v, ok := obj.InnerV[key]; ok {
 						found = true
-						objCode, err_ := generation.Tycl(v)
-						if err_ != nil {
-							err = core.Wrap(shared.WrappedError, err_, "Get: cannot generate object representation")
+						objCode, cause := generation.Tycl(v)
+						if cause != nil {
+							err = core.Wrap(shared.WrappedError, cause, "Get: cannot generate object representation")
 							return
 						}
 						resultStr = objCode
@@ -339,5 +339,4 @@ func Actions() map[string]func(cp *configParser, pn *stringParsing.ParsedNode, a
 			}
 		},
 	}
-
 }

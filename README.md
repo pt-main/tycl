@@ -39,7 +39,7 @@ Use in code:
 ```go
 import "github.com/pt-main/tycl"
 
-cfg, err := tycl.Process(`{ port: int = 8080 }`, `strict { port: int }`)
+cfg, err := tycl.Process(`{ port: int = 8080 }`, `strict { port: int }`, false)
 if err != nil {
     log.Fatal(err)
 }
@@ -54,88 +54,149 @@ Download the binary from [releases](https://github.com/pt-main/tycl/releases) or
 go install github.com/pt-main/tycl/tycl@latest
 ```
 
-Commands:
+The CLI is a complete interface to the language: you can validate, format, convert, read and
+edit configs without writing a line of Go.
 
-- `tycl valid <config> [contract]` – validate a config against a contract.
-- `tycl syntax <file...>` – check syntax and types (without a contract).
-- `tycl fmt <type> <file...>` – formatting.
-- `tycl gen <input> <output> <json|yaml|toml>` – generate target format.
-- `tycl contract <input> <output> <type>` – generate a contract from a config.
-- `tycl file --path=<path> <cmd> <args...>` – edit a file directly via CLI (more details later).
+#### Conventions
 
-Some commands support the `--strict-keys` flag – it forbids duplicate keys (of any type) within the same object (see CLI docs – `tycl help`).
+**Streams** – a path of `-` means stdin for input and stdout for output, so every command
+composes with pipes:
 
-### Editing configs via CLI
-
-TYCL allows you to edit configs directly from the terminal without opening a text editor. This is convenient for scripts, quick fixes, automation, and working with TYCL outside Go.
-
-**Syntax:**
 ```bash
-tycl file <subcommand> [args...] --path=<config-file> [--strict-keys]
+cat app.tycl | tycl gen - - json | jq .port
+tycl gen app.tycl - yaml > app.yaml
 ```
 
-**Global flags:**
-- `--path` – path to the TYCL config (required)
-- `--strict-keys` – forbids duplicate keys (optional)
+**Exit codes** – predictable for scripts and CI:
 
-**Available subcommands:**
+| Code | Meaning              |
+|------|----------------------|
+| `0`  | success              |
+| `1`  | invalid data         |
+| `2`  | usage error          |
+| `3`  | I/O error            |
 
-| Command     | Description                              | Example                                               |
-|-------------|------------------------------------------|-------------------------------------------------------|
-| `get <type> <key>` | Print the value of a key          | `tycl file get --path=config.tycl int port`          |
-| `set <type> <key> <value>` | Set a key to a value      | `tycl file set --path=config.tycl int port 9090`     |
-| `remove <type> <key>` | Remove a key                    | `tycl file remove --path=config.tycl int port`       |
-| `structure`  | Show the structure of the config        | `tycl file structure --path=config.tycl`              |
-| `help`       |                                        | `tycl help`                                           |
+**JSON output** – `--json` makes any command print one stable envelope on stdout and keeps
+stderr empty, so results can be parsed without filtering:
 
-#### Examples
-
-**Getting a value:**
-```bash
-tycl file get --path=config.tycl int port
+```json
+{
+  "ok": false,
+  "command": "valid",
+  "diagnostics": [
+    {
+      "code": "type.invalid",
+      "severity": "error",
+      "message": "Invalid value type: nope",
+      "hint": "unknown type \"nope\", did you mean \"int\"?",
+      "span": { "file": "app.tycl", "line": 2, "column": 11, "width": 4 }
+    }
+  ],
+  "data": { }
+}
 ```
 
-**Setting a scalar value:**
-```bash
-tycl file set --path=config.tycl int port 9090
-tycl file set --path=config.tycl string host "localhost"
-tycl file set --path=config.tycl null timeout int
+**Global flags** – `--json`, `--no-color`, `--strict-keys`, `--verbose`, `--debug`.
+
+#### Diagnostics
+
+Errors are reported with the exact position, the source line and a suggestion:
+
+```console
+$ tycl valid app.tycl
+error 1st pair: Invalid value type: nope
+  app.tycl:2:11
+  hint: unknown type "nope", did you mean "int"?
+     2 |     port: nope = 8080,
+       |           ^^^^
+1 error in app.tycl
 ```
 
-**Setting an array:**
+Contract violations are reported per key and per array index, and `--json` exposes them as
+`code` / `message` / `hint` / `span` / `path` / `index` fields, ready for an editor or a
+language server.
+
+#### Commands
+
+**Validate and check**
+
 ```bash
-tycl file set --path=config.tycl ints ports "8080,8081,8082"
-tycl file set --path=config.tycl strings names "dev,prod,stage"
+tycl valid <config> [contract] [--strict-keys]   # validate against a contract
+tycl syntax <file...>                            # check many files at once
+tycl fmt <conf|contract> <file...>               # canonical formatting
 ```
 
-**Setting an object:**
+**Convert**
+
 ```bash
-tycl file set --path=config.tycl object server "{host: string = \"127.0.0.1\", port: int = 8080}"
+tycl gen <input> <output> <json|yaml|toml|tycl>  # export to another format
+tycl contract <input> <output> <dynamic|flexible|strict>  # derive a contract
 ```
 
-**Setting an array of objects:**
+`gen` can validate against a contract before converting: `tycl gen app.tycl app.json json --contract=schema.tycl`.
+
+**Read and edit values**
+
 ```bash
-tycl file set --path=config.tycl objects servers "[{host: string = \"a\", port: int = 80}, {host: string = \"b\", port: int = 443}]"
+tycl get <config> <path>                         # read one value
+tycl query <config> [path...]                    # read many, or list all paths
+tycl set <config> <path> <type|auto> <value>     # write a value
+tycl remove <config> <path>                      # delete a key
+tycl structure <config>                          # list every readable path
 ```
 
-**Removing a key:**
+Paths address nested values and array elements:
+
 ```bash
-tycl file remove --path=config.tycl int port
-tycl file remove --path=config.tycl object server
+tycl get app.tycl server.port         # nested object
+tycl get app.tycl servers.0.host      # element of an object array
+tycl set app.tycl port auto 9090      # type is inferred
+tycl set app.tycl timeout int null    # declare a typed null
+tycl set app.tycl ports ints 80,443   # replace an array
+tycl set app.tycl servers.0.port int 8081  # edit one array element
 ```
 
-**Viewing structure:**
+`set` rewrites the file in canonical form and can change the type of a key without leaving a
+stale duplicate behind. Unknown paths are rejected with a "did you mean" suggestion.
+
+**Combine**
+
 ```bash
-tycl file structure --path=config.tycl
-# Output:
-# Config structure:
-#   int:
-#     port
-#   string:
-#     host
-#   objects:
-#     servers
+tycl merge <base> <override> [more...]
 ```
+
+Later files win. Nested objects merge key by key, so an override only declares what it changes.
+
+**Introspection**
+
+```bash
+tycl ast <file> [config|contract]   # syntax tree as JSON
+tycl docs <config>                  # render documentation comments
+tycl types                          # the type system
+```
+
+`tycl ast` is the machine-readable contract of the language: it exposes every node with its
+type, raw text and source span, which is what editors and other tools should build on.
+
+**Complete example**
+
+```bash
+# validate, then export
+tycl valid app.tycl schema.tycl
+tycl gen app.tycl app.json json --contract=schema.tycl
+
+# read a value in a script
+port=$(tycl get app.tycl server.port)
+
+# edit without opening an editor
+tycl set app.tycl server.host string 127.0.0.1
+tycl fmt conf app.tycl
+
+# combine a base config with a per-environment override
+tycl merge base.tycl prod.tycl > merged.tycl
+```
+
+---
 
 ---
 
@@ -379,10 +440,49 @@ type Config struct {
 Example access:
 
 ```go
-cfg, _ := tycl.Process(`{ port: int = 8080, host: string = "localhost" }`, "")
+cfg, _ := tycl.Process(`{ port: int = 8080, host: string = "localhost" }`, "", false)
 port := cfg.IntV["port"]        // 8080 (int)
 host := cfg.StringV["host"]     // "localhost" (string)
 ```
+
+---
+
+## Diagnostics
+
+Every failure is reported as a flat list of diagnostics, each one carrying a stable code, a
+message, a source position and an actionable hint.
+
+```go
+cfg, err := tycl.ProcessSource("app.tycl", code, contract, false)
+if err != nil {
+    for _, d := range tycl.Diagnostics("app.tycl", code, err) {
+        fmt.Println(d.Code, d.Span, d.Message, d.Hint)
+    }
+}
+```
+
+For tools that only need the list, `tycl.Validate` returns it directly:
+
+```go
+problems := tycl.Validate("app.tycl", code, contract, false)
+```
+
+A diagnostic looks like this:
+
+```go
+type Diagnostic struct {
+    Code     string  // "type.invalid", "contract.violation", "syntax.parse", ...
+    Severity string  // "error" or "warning"
+    Message  string
+    Hint     string  // what to do about it
+    Span     *Span   // file, line, column, width
+    Path     string  // config path of the problem
+    Index    *int    // array index of the problem
+}
+```
+
+`diag.Render` formats diagnostics for a terminal, including the source line and a caret under
+the offending token.
 
 ---
 
@@ -438,27 +538,30 @@ Contracts support nesting for objects and **arrays of objects** (as shown in the
 
 ## Generating other formats via CLI
 
-The CLI tool allows exporting a config to JSON, YAML, or TOML without writing code:
+TYCL works as an **intermediate language**: you write safe and readable configs, then export
+them for integration with other systems.
 
 ```bash
 tycl gen config.tycl out.json json
 tycl gen config.tycl out.yaml yaml
 tycl gen config.tycl out.toml toml
+cat config.tycl | tycl gen - - json | jq .port
 ```
 
-This turns TYCL into an **intermediate language**: you write safe and readable TYCL, then generate files for integration with other systems.
+See [Commands](#commands) for the full CLI surface.
 
 ---
 
 ## Generating contracts
 
-TYCL can automatically generate contracts from existing configs:
+TYCL can automatically generate a contract from an existing config:
 
 ```bash
 tycl contract config.tycl contract.tycl strict
 ```
 
-This is useful when you already have a config and want to create a schema for validating future changes.
+This is useful when you already have a config and want a schema for validating future changes.
+The same operation is available from Go through `generation.ContractFromConfig`.
 
 ---
 

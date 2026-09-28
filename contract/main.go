@@ -4,9 +4,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/pt-main/lc/engine/core"
-	"github.com/pt-main/lc/parsing/stringParsing"
-	"github.com/pt-main/lc/tooling/astools"
+	"github.com/pt-main/lc/v2/engine/core"
+	"github.com/pt-main/lc/v2/parsing/stringParsing"
+	"github.com/pt-main/lc/v2/tooling/astools"
 	"github.com/pt-main/tycl/contract/lcproc"
 	"github.com/pt-main/tycl/shared"
 	"github.com/pt-main/tycl/utils"
@@ -95,27 +95,37 @@ func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err core.Err
 	case "dynamic":
 		con.Type = shared.ContractDynamic
 	}
-	errs := []core.ErrorInterface{}
+	contexts := []core.ErrorInterface{}
 	for idx, pair := range pairs {
-		defer func() {
-			if len(errs) > 0 {
-				err = core.Err(shared.ContextedError, "ERR").
+		problems := []core.ErrorInterface{}
+		report := func(e core.ErrorInterface) {
+			problems = append(problems, e)
+			contexts = append(contexts,
+				core.Err(shared.ContextedError, "pair").
 					WithMeta("idx", idx).
 					WithMeta("raw", pair.Raw).
-					WithMeta("errs", errs)
-			}
-			return
-		}()
+					WithMeta("errs", problems))
+		}
+
 		key := astools.FindChild(&pair, "IDENT").Raw
 		colonAssign := astools.FindChildIndex(&pair, "COLON")
 		typeNode := astools.GetChildAt(&pair, colonAssign+1)
-		vtype := typeNode.Raw
-		vtype = strings.ToLower(vtype)
-		if !utils.IsTypeValid(vtype) {
-			err = core.Err(shared.ProcessingError, "Invalid type: %v", vtype).
-				WithMeta("raw", pair.Raw).WithMeta("idx", idx)
-			return
+		if typeNode == nil {
+			report(core.Err(shared.ProcessingError,
+				"Contract key %q has no type", key).
+				WithMeta("raw", pair.Raw).WithMeta("idx", idx))
+			continue
 		}
+		vtype := strings.ToLower(typeNode.Raw)
+		if !utils.IsTypeValid(vtype) {
+			report(shared.HintError(
+				core.Err(shared.ProcessingError, "Invalid contract type: %v", vtype).
+					WithMeta("raw", pair.Raw).WithMeta("idx", idx),
+				"known types: null, bool, int, float, string, object, bools, ints, floats, strings, objects",
+			))
+			continue
+		}
+
 		valueNode := astools.FindChild(&pair, "object")
 		value := ""
 		if valueNode != nil {
@@ -123,21 +133,32 @@ func ParseBody(pn *stringParsing.ParsedNode) (con *shared.Contract, err core.Err
 		}
 		isObject := slices.Contains([]string{"object", "objects"}, vtype)
 		if value == "" && isObject {
-			err = core.Err(shared.ProcessingError,
-				"Can't contract: assertion value is not object (type '%v', must be object or objects)",
-				vtype).WithMeta("raw", pair.Raw).WithMeta("idx", idx)
-			return
+			report(shared.HintError(
+				core.Err(shared.ProcessingError,
+					"Contract type %q needs a body", vtype).
+					WithMeta("raw", pair.Raw).WithMeta("idx", idx),
+				"write '"+key+": object = strict { ... }'",
+			))
+			continue
 		}
 		if value != "" && !isObject {
-			err = core.Err(shared.ProcessingError, "Can't contract: invalid type assertion").
-				WithMeta("raw", pair.Raw).WithMeta("idx", idx)
+			report(shared.HintError(
+				core.Err(shared.ProcessingError, "Contract type %q cannot have a body", vtype).
+					WithMeta("raw", pair.Raw).WithMeta("idx", idx),
+				"only 'object' and 'objects' accept a body in a contract",
+			))
+			continue
 		}
-		err_ := processPair(vtype, key, value, con, valueNode)
-		if err_ != nil {
-			err = core.Wrap(shared.ProcessingError, err_, core.GetRealError(err_)).
-				WithMeta("raw", pair.Raw).WithMeta("idx", idx)
-			return
+		if cause := processPair(vtype, key, value, con, valueNode); cause != nil {
+			report(core.Wrap(shared.ProcessingError, cause, "%v", cause.GetMsg()).
+				WithMeta("raw", pair.Raw).WithMeta("idx", idx))
 		}
+	}
+	if len(contexts) > 0 {
+		err = core.Err(shared.ContractError, "contract has %d invalid %s",
+			len(contexts), map[bool]string{true: "pairs", false: "pair"}[len(contexts) != 1]).
+			WithMeta("errs", contexts)
+		return
 	}
 
 	for _, comm := range comments {

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pt-main/lc/engine/core"
+	"github.com/pt-main/lc/v2/engine/core"
 	"github.com/pt-main/tycl/shared"
 )
 

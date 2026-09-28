@@ -1,6 +1,6 @@
 {
     /*
-        Multiline comment 
+        Multiline comment
             after formatting
     */
     test = {
@@ -11,7 +11,14 @@
         test = 0,
         key2 = null,
     },
-    test1: objects = [{key="object"},{key='test2'}],
+    test1: objects = [
+        {
+            key = "object",
+        },
+        {
+            key = 'test2',
+        }
+    ],
     /*
         Multiline comment
         at end of config

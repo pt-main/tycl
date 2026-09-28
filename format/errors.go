@@ -5,10 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pt-main/lc/engine/core"
-	"github.com/pt-main/lc/parsing/stringParsing/parser3"
-	"github.com/pt-main/lc/public/errors"
-	"github.com/pt-main/tap/color"
+	"github.com/pt-main/lc/v2/engine/core"
+	"github.com/pt-main/lc/v2/parsing/stringParsing/parser3"
+	"github.com/pt-main/lc/v2/public/errors"
+
+	"github.com/pt-main/tap/go/color"
 	"github.com/pt-main/tycl/shared"
 )
 

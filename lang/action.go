@@ -1,9 +1,9 @@
 package lang
 
 import (
-	"github.com/pt-main/lc/engine/core"
-	"github.com/pt-main/lc/parsing/stringParsing"
-	"github.com/pt-main/lc/tooling/astools"
+	"github.com/pt-main/lc/v2/engine/core"
+	"github.com/pt-main/lc/v2/parsing/stringParsing"
+	"github.com/pt-main/lc/v2/tooling/astools"
 	"github.com/pt-main/tycl/shared"
 )
 
@@ -51,10 +51,10 @@ func (cp *configParser) parseAction(pn *stringParsing.ParsedNode) (vtype string,
 		err = core.Err(shared.RuntimeError, "Unrecognized action: %v", action)
 		return
 	}
-	var err_ error
-	vtype, val, err_ = fn(cp, pn, args)
-	if err_ == nil {
+	var cause error
+	vtype, val, cause = fn(cp, pn, args)
+	if cause == nil {
 		return
 	}
-	return "", "", core.Wrap(shared.RuntimeError, err_, "Can't parse action (for %v)", pn.Raw)
+	return "", "", core.Wrap(shared.RuntimeError, cause, "Can't parse action (for %v)", pn.Raw)
 }

@@ -148,16 +148,23 @@ func tyclRaw(conf *shared.Config) (string, error) {
 			addLine(fmt.Sprintf("%s: objects = []", k))
 			continue
 		}
-		elements := make([]string, len(arr))
+		// Object bodies are always laid out one per line: a config is read
+		// by people, and a single-line object array is unreadable.
+		var list strings.Builder
+		list.WriteString("[\n")
 		for i, sub := range arr {
 			subRaw, err := tyclRaw(sub)
 			if err != nil {
 				return "", fmt.Errorf("object array %q index %d: %w", k, i, err)
 			}
-			elements[i] = subRaw
+			list.WriteString(strings.ReplaceAll(subRaw, "\n", "\n    "))
+			if i != len(arr)-1 {
+				list.WriteString(",")
+			}
+			list.WriteString("\n")
 		}
-
-		addLine(fmt.Sprintf("%s: objects = [%s]", k, strings.Join(elements, ", ")))
+		list.WriteString("]")
+		addLine(fmt.Sprintf("%s: objects = %s", k, list.String()))
 	}
 
 	b.WriteString("}")

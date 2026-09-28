@@ -1,0 +1,6 @@
+.gocache/
+tycl
+*.exe
+__pycache__/
+AGENTS.md
+build/

@@ -4,9 +4,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/pt-main/lc/engine/core"
-	"github.com/pt-main/lc/parsing/stringParsing"
-	"github.com/pt-main/lc/tooling/astools"
+	"github.com/pt-main/lc/v2/engine/core"
+	"github.com/pt-main/lc/v2/parsing/stringParsing"
+	"github.com/pt-main/lc/v2/tooling/astools"
 	lcprocC "github.com/pt-main/tycl/contract/lcproc"
 	lcprocL "github.com/pt-main/tycl/lang/lcproc"
 	"github.com/pt-main/tycl/shared"
@@ -30,13 +30,46 @@ func FormConfig(code string) (string, core.ErrorInterface) {
 	return parseUniversal(&pn[0], FormConfig)
 }
 
+// hasObjectChild reports whether an array contains nested objects.
+func hasObjectChild(array *stringParsing.ParsedNode) bool {
+	for _, child := range astools.GetChildren(array) {
+		if child.Switch == "object" {
+			return true
+		}
+	}
+	return false
+}
+
+// spaceAfterCommas normalises an inline array so items read as `a, b, c`.
+// Commas inside strings are left untouched.
+func spaceAfterCommas(raw string) string {
+	var b strings.Builder
+	var quote rune
+	runes := []rune(raw)
+	for i, r := range runes {
+		switch {
+		case quote != 0:
+			b.WriteRune(r)
+			if r == quote {
+				quote = 0
+			}
+		case r == '"' || r == '\'':
+			quote = r
+			b.WriteRune(r)
+		case r == ',':
+			b.WriteRune(r)
+			// only pad when the next rune is not whitespace already
+			if i+1 < len(runes) && runes[i+1] != ' ' && runes[i+1] != '\n' {
+				b.WriteRune(' ')
+			}
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string, core.ErrorInterface)) (string, core.ErrorInterface) {
-	// find pairs
-	// declarate res variable with start of tycl object
-	// if object is contract - add contract type to res and set IS_CONTRACT = true
-	// (if IS_CONTRACT==true adding contract type, spaces, and block arrays)
-	// add every child to res
-	// add final bracket to res
 	object := astools.FindChild(
 		astools.FindChild(
 			pn, "config",
@@ -44,10 +77,10 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 	)
 	allChildren := astools.GetChildren(object)
 	contract := astools.FindChild(object, "CONTRACT")
-	IS_CONTRACT := false
+	isContract := false
 	res := ""
 	if contract != nil {
-		IS_CONTRACT = true
+		isContract = true
 		res += contract.Raw + " "
 	}
 	res += "{\n"
@@ -57,7 +90,6 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 		startTabs := 0
 		trimmed := []string{}
 		value := comment.Metadata["value"].(string)
-		// split comment value and cut first and last spaces
 		valSplit := strings.Split(value, "\n")
 		if len(valSplit) == 1 {
 			res += value + "*/" + "\n"
@@ -73,7 +105,7 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 				trimmed = append(trimmed, "")
 			}
 		}
-		// add lines with formatted tabs
+		// Re-indent the body relative to the comment's own first line.
 		for idx, line := range trimmed {
 			linetabs := strings.Count(line, tab) + strings.Count(line, "\t")
 			if idx == 0 {
@@ -95,25 +127,45 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 			res += tab
 			children := astools.GetChildren(&objChild)
 			for idx, child := range children {
-				// find child type
-				// find next child type
-				// if child is object/array add generated code of object/array to res
-				// else just add raw child
-				// add space if child is color, ident or assign and next node is not colon
-
 				ctype := child.Switch
 				nextNode := ""
 				if idx < len(children)-1 {
 					nextNode = children[idx+1].Switch
 				}
 
-				if ctype == "array" && IS_CONTRACT {
+				if ctype == "array" && isContract {
 					return "", core.Err(shared.RuntimeError, "Invalid contract: array at: \n%v", objChild.Raw)
 				}
 
 				if ctype == "array" {
+					// An array of objects is always expanded: a single line
+					// of nested objects cannot be read or reviewed.
+					if hasObjectChild(&child) {
+						res += "[\n"
+						for _, achild := range astools.GetChildren(&child) {
+							switch {
+							case achild.Switch == "COMMENT":
+								addComment(&achild, 2)
+							case achild.Raw == "[" || achild.Raw == "]":
+								// brackets are emitted around the items
+							case achild.Switch == "SEPARATOR":
+								// separators inside an object are part of it
+							case achild.Switch == "object":
+								formed, err := form(achild.Raw)
+								if err != nil {
+									return "", core.Wrap(shared.WrappedError, err, "%v", err.GetMsg())
+								}
+								res += tab + tab + strings.ReplaceAll(formed, "\n", "\n"+tab+tab) + ",\n"
+							default:
+								res += tab + tab + achild.Raw + ",\n"
+							}
+						}
+						res = strings.TrimSuffix(res, ",\n") + "\n"
+						res += tab + "]"
+						continue
+					}
 					if len(child.Raw) <= 50 {
-						res += child.Raw
+						res += spaceAfterCommas(child.Raw)
 					} else {
 						children := astools.GetChildren(&child)
 						for idx, achild := range children {
@@ -129,18 +181,15 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 								res += tab + achild.Raw
 								continue
 							}
-							// form object value, objects will be formed automaticly
 							child := achild.Raw
-							var err error
+							var err core.ErrorInterface
 							if achild.Switch == "object" {
 								child, err = form(achild.Raw)
 								if err != nil {
-									return "", core.Wrap(shared.WrappedError, err, err.Error())
+									return "", core.Wrap(shared.WrappedError, err, "%v", err.GetMsg())
 								}
 							}
-							// add tabs to lines
 							res += tab + tab + strings.Join(strings.Split(child, "\n"), "\n"+tab+tab)
-							// add newline if line is last
 							if idx == len(children)-2 {
 								res += "\n"
 							}
@@ -151,7 +200,7 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 					if err != nil {
 						return "", err
 					}
-					if IS_CONTRACT {
+					if isContract {
 						res += " "
 					}
 					res += strings.ReplaceAll(child, "\n", "\n    ")
@@ -162,7 +211,6 @@ func parseUniversal(pn *stringParsing.ParsedNode, form func(code string) (string
 				if slices.Contains([]string{
 					"COLON", "IDENT", "ASSIGN",
 				}, ctype) {
-					// colon is next only after first ident
 					if nextNode != "COLON" && nextNode != "" {
 						res += " "
 					}

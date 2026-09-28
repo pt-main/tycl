@@ -1,7 +1,11 @@
 package main
 
-import "github.com/pt-main/tycl/cli"
+import (
+	"os"
+
+	"github.com/pt-main/tycl/cli"
+)
 
 func main() {
-	cli.NewCli().Main()
+	os.Exit(cli.Main())
 }

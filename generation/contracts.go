@@ -2,13 +2,32 @@ package generation
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pt-main/tycl/shared"
 )
 
-// ContractFromConfig генерирует контракт из загруженного конфига.
-// defaultStrictness — уровень строгости для вложенных объектов.
+// sortedKeys returns map keys in a stable order, so generated contracts and
+// configs are byte-identical between runs.
+func sortedKeys[V any](m map[string]V) []string {
+	out := make([]string, 0, len(m))
+	for key := range m {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func sortedStringKeys(in []string) []string {
+	out := make([]string, len(in))
+	copy(out, in)
+	sort.Strings(out)
+	return out
+}
+
+// ContractFromConfig builds a contract that describes an existing config.
+// defaultStrictness is the strictness applied to nested objects.
 func ContractFromConfig(cfg *shared.Config, defaultStrictness shared.ContractType) (*shared.Contract, error) {
 	if cfg == nil {
 		return shared.NewNillContract(), nil
@@ -17,36 +36,37 @@ func ContractFromConfig(cfg *shared.Config, defaultStrictness shared.ContractTyp
 	contract := shared.NewNillContract()
 	contract.Type = defaultStrictness
 
-	// Скаляры
-	for key := range cfg.BoolV {
+	// Scalars
+	for _, key := range sortedKeys(cfg.BoolV) {
 		contract.BoolV = append(contract.BoolV, key)
 	}
-	for key := range cfg.IntV {
+	for _, key := range sortedKeys(cfg.IntV) {
 		contract.IntV = append(contract.IntV, key)
 	}
-	for key := range cfg.FloatV {
+	for _, key := range sortedKeys(cfg.FloatV) {
 		contract.FloatV = append(contract.FloatV, key)
 	}
-	for key := range cfg.StringV {
+	for _, key := range sortedKeys(cfg.StringV) {
 		contract.StringV = append(contract.StringV, key)
 	}
 
-	// Массивы скаляров
-	for key := range cfg.BoolArrV {
+	// Scalar arrays
+	for _, key := range sortedKeys(cfg.BoolArrV) {
 		contract.BoolArrV = append(contract.BoolArrV, key)
 	}
-	for key := range cfg.IntArrV {
+	for _, key := range sortedKeys(cfg.IntArrV) {
 		contract.IntArrV = append(contract.IntArrV, key)
 	}
-	for key := range cfg.FloatArrV {
+	for _, key := range sortedKeys(cfg.FloatArrV) {
 		contract.FloatArrV = append(contract.FloatArrV, key)
 	}
-	for key := range cfg.StringArrV {
+	for _, key := range sortedKeys(cfg.StringArrV) {
 		contract.StringArrV = append(contract.StringArrV, key)
 	}
 
-	// Null-значения
-	for key, typ := range cfg.NullV {
+	// Typed nulls
+	for _, key := range sortedKeys(cfg.NullV) {
+		typ := cfg.NullV[key]
 		switch typ {
 		case "bool":
 			contract.BoolV = append(contract.BoolV, key)
@@ -69,8 +89,9 @@ func ContractFromConfig(cfg *shared.Config, defaultStrictness shared.ContractTyp
 		}
 	}
 
-	// Вложенные объекты
-	for key, subCfg := range cfg.InnerV {
+	// Nested objects
+	for _, key := range sortedKeys(cfg.InnerV) {
+		subCfg := cfg.InnerV[key]
 		subContract, err := ContractFromConfig(subCfg, defaultStrictness)
 		if err != nil {
 			return nil, fmt.Errorf("object %q: %w", key, err)
@@ -78,19 +99,21 @@ func ContractFromConfig(cfg *shared.Config, defaultStrictness shared.ContractTyp
 		contract.Inner[key] = subContract
 	}
 
-	// Массивы объектов — определяем, одинаковы ли структуры элементов
-	for key, arr := range cfg.InnerArrV {
+	// Object arrays: an element contract is only usable when every element
+	// shares the same shape
+	for _, key := range sortedKeys(cfg.InnerArrV) {
+		arr := cfg.InnerArrV[key]
 		if len(arr) == 0 {
-			continue // Пустой массив — не можем определить контракт
+			continue // An empty array carries no shape to describe
 		}
 
-		// Генерируем контракт для первого элемента
+		// The first element defines the candidate contract
 		firstContract, err := ContractFromConfig(arr[0], defaultStrictness)
 		if err != nil {
 			return nil, fmt.Errorf("object array %q (first element): %w", key, err)
 		}
 
-		// Проверяем, что все элементы имеют такую же структуру
+		// Every other element must match it
 		allSame := true
 		for i := 1; i < len(arr); i++ {
 			otherContract, err := ContractFromConfig(arr[i], defaultStrictness)
@@ -104,10 +127,10 @@ func ContractFromConfig(cfg *shared.Config, defaultStrictness shared.ContractTyp
 		}
 
 		if allSame {
-			// Сохраняем контракт
+			// Shared shape: keep the contract
 			contract.InnerArrV[key] = firstContract
 		} else {
-			// Оставляем nil — при генерации будет выведено просто `objects`
+			// Mixed shapes: a nil contract renders as a bare 'objects'
 			contract.InnerArrV[key] = nil
 		}
 	}
@@ -115,7 +138,7 @@ func ContractFromConfig(cfg *shared.Config, defaultStrictness shared.ContractTyp
 	return contract, nil
 }
 
-// contractsEqual сравнивает два контракта на структурное равенство (игнорируя тип строгости).
+// contractsEqual reports structural equality, ignoring strictness.
 func contractsEqual(a, b *shared.Contract) bool {
 	if a == nil && b == nil {
 		return true
@@ -124,7 +147,7 @@ func contractsEqual(a, b *shared.Contract) bool {
 		return false
 	}
 
-	// Сравниваем списки ключей (множества)
+	// Key sets are compared as unordered collections
 	if !stringSlicesEqual(a.BoolV, b.BoolV) {
 		return false
 	}
@@ -150,7 +173,7 @@ func contractsEqual(a, b *shared.Contract) bool {
 		return false
 	}
 
-	// Рекурсивно сравниваем вложенные объекты (Inner)
+	// Nested objects
 	if len(a.Inner) != len(b.Inner) {
 		return false
 	}
@@ -160,7 +183,7 @@ func contractsEqual(a, b *shared.Contract) bool {
 		}
 	}
 
-	// Рекурсивно сравниваем контракты для массивов объектов (InnerArrV)
+	// Object array contracts
 	if len(a.InnerArrV) != len(b.InnerArrV) {
 		return false
 	}
@@ -189,7 +212,7 @@ func stringSlicesEqual(a, b []string) bool {
 	return true
 }
 
-// GenerateContractCode генерирует TYCL-код контракта из структуры Contract.
+// GenerateContractCode renders a Contract as TYCL source.
 func GenerateContractCode(contract *shared.Contract) (string, error) {
 	if contract == nil {
 		return "dynamic {}", nil
@@ -209,36 +232,37 @@ func GenerateContractCode(contract *shared.Contract) (string, error) {
 	b.WriteString(typeStr)
 	b.WriteString(" {\n")
 
-	// Скаляры
-	for _, key := range contract.BoolV {
+	// Scalars
+	for _, key := range sortedStringKeys(contract.BoolV) {
 		b.WriteString(fmt.Sprintf("    %s: bool,\n", key))
 	}
-	for _, key := range contract.IntV {
+	for _, key := range sortedStringKeys(contract.IntV) {
 		b.WriteString(fmt.Sprintf("    %s: int,\n", key))
 	}
-	for _, key := range contract.FloatV {
+	for _, key := range sortedStringKeys(contract.FloatV) {
 		b.WriteString(fmt.Sprintf("    %s: float,\n", key))
 	}
-	for _, key := range contract.StringV {
+	for _, key := range sortedStringKeys(contract.StringV) {
 		b.WriteString(fmt.Sprintf("    %s: string,\n", key))
 	}
 
-	// Массивы скаляров
-	for _, key := range contract.BoolArrV {
+	// Scalar arrays
+	for _, key := range sortedStringKeys(contract.BoolArrV) {
 		b.WriteString(fmt.Sprintf("    %s: bools,\n", key))
 	}
-	for _, key := range contract.IntArrV {
+	for _, key := range sortedStringKeys(contract.IntArrV) {
 		b.WriteString(fmt.Sprintf("    %s: ints,\n", key))
 	}
-	for _, key := range contract.FloatArrV {
+	for _, key := range sortedStringKeys(contract.FloatArrV) {
 		b.WriteString(fmt.Sprintf("    %s: floats,\n", key))
 	}
-	for _, key := range contract.StringArrV {
+	for _, key := range sortedStringKeys(contract.StringArrV) {
 		b.WriteString(fmt.Sprintf("    %s: strings,\n", key))
 	}
 
-	// Вложенные объекты
-	for key, subContract := range contract.Inner {
+	// Nested objects
+	for _, key := range sortedKeys(contract.Inner) {
+		subContract := contract.Inner[key]
 		subCode, err := GenerateContractCode(subContract)
 		if err != nil {
 			return "", fmt.Errorf("object %q: %w", key, err)
@@ -246,10 +270,10 @@ func GenerateContractCode(contract *shared.Contract) (string, error) {
 		lines := strings.Split(subCode, "\n")
 		for i, line := range lines {
 			if i == 0 {
-				// Первая строка: "strict {" или "flexible {"
+				// First line is the nested contract head, e.g. "strict {".
 				b.WriteString(fmt.Sprintf("    %s: object = %s\n", key, line))
 			} else if i == len(lines)-1 {
-				// Последняя строка: "}" — добавляем запятую
+				// The closing brace needs the trailing comma.
 				b.WriteString("    " + line + ",\n")
 			} else if line != "" {
 				b.WriteString("    " + line + "\n")
@@ -257,10 +281,11 @@ func GenerateContractCode(contract *shared.Contract) (string, error) {
 		}
 	}
 
-	// Массивы объектов
-	for key, subContract := range contract.InnerArrV {
+	// Object arrays
+	for _, key := range sortedKeys(contract.InnerArrV) {
+		subContract := contract.InnerArrV[key]
 		if subContract == nil {
-			// Без контракта
+			// No element contract available
 			b.WriteString(fmt.Sprintf("    %s: objects,\n", key))
 		} else {
 			subCode, err := GenerateContractCode(subContract)

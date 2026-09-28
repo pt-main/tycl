@@ -39,7 +39,7 @@ go get github.com/pt-main/tycl
 ```go
 import "github.com/pt-main/tycl"
 
-cfg, err := tycl.Process(`{ port: int = 8080 }`, `strict { port: int }`)
+cfg, err := tycl.Process(`{ port: int = 8080 }`, `strict { port: int }`, false)
 if err != nil {
     log.Fatal(err)
 }
@@ -48,94 +48,156 @@ port := cfg.IntV["port"] // 8080
 
 ### CLI
 
-Скачайте бинарник из [релизов](https://github.com/pt-main/tycl/releases) или установите через `go install`:
+Скачайте бинарник из [releases](https://github.com/pt-main/tycl/releases) или установите через `go install`:
 
 ```bash
 go install github.com/pt-main/tycl/tycl@latest
 ```
 
-Команды:
+CLI — это полноценный интерфейс к языку: валидация, форматирование, конвертация, чтение и
+правка конфигов без единой строки на Go.
 
-- `tycl valid <config> [contract]` - проверка конфига по контракту.
-- `tycl syntax <file...>` - проверка синтаксиса и типов (без контракта).
-- `tycl fmt <type> <file...>` - форматирование.
-- `tycl gen <input> <output> <json|yaml|toml>` - генерация целевого формата.
-- `tycl contract <input> <output> <type>` - генерация контракта из конфига.
-- `tycl file --path=<path> <cmd> <args...>` - редактирование файла напрямую через cli (подробнее позже).
+#### Соглашения
 
-Некоторые команды поддерживают флаг `--strict-keys` - запрещает дублирование ключей (с любыми типами) в пределах одного объекта (см. в документации cli - `tycl help`).
+**Потоки** — путь `-` означает stdin для ввода и stdout для вывода, поэтому любая команда
+работает в пайпе:
 
-### Редактирование конфигов через CLI
-
-TYCL позволяет редактировать конфиги прямо из терминала без открытия текстового редактора. Это удобно для скриптов, быстрых правок и автоматизации, а так же для работы с tycl вне Go.
-
-**Синтаксис:**
 ```bash
-tycl file <subcommand> [args...] --path=<config-file> [--strict-keys]
+cat app.tycl | tycl gen - - json | jq .port
+tycl gen app.tycl - yaml > app.yaml
 ```
 
-**Глобальные флаги:**
-- `--path` - путь к TYCL-конфигу (обязательно)
-- `--strict-keys` - запрещает дублирование ключей (опционально)
+**Коды возврата** — предсказуемы для скриптов и CI:
 
-**Доступные субкоманды:**
+| Код  | Значение                |
+|------|-------------------------|
+| `0`  | успех                   |
+| `1`  | некорректные данные     |
+| `2`  | ошибка использования    |
+| `3`  | ошибка ввода/вывода     |
 
-| Команда | Описание | Пример |
-|---------|----------|--------|
-| `get <type> <key>` | Вывести значение ключа | `tycl file get --path=config.tycl int port` |
-| `set <type> <key> <value>` | Установить значение ключа | `tycl file set --path=config.tycl int port 9090` |
-| `remove <type> <key>` | Удалить ключ | `tycl file remove --path=config.tycl int port` |
-| `structure` | Показать структуру конфига | `tycl file structure --path=config.tycl` | 
-| `help` | | `tycl help` |
+**JSON-вывод** — флаг `--json` заставляет любую команду печатать один стабильный конверт
+в stdout и оставлять stderr пустым:
 
-#### Примеры
-
-**Получение значения:**
-```bash
-tycl file get --path=config.tycl int port
+```json
+{
+  "ok": false,
+  "command": "valid",
+  "diagnostics": [
+    {
+      "code": "type.invalid",
+      "severity": "error",
+      "message": "Invalid value type: nope",
+      "hint": "unknown type \"nope\", did you mean \"int\"?",
+      "span": { "file": "app.tycl", "line": 2, "column": 11, "width": 4 }
+    }
+  ],
+  "data": { }
+}
 ```
 
-**Установка скалярного значения:**
-```bash
-tycl file set --path=config.tycl int port 9090
-tycl file set --path=config.tycl string host "localhost"
-tycl file set --path=config.tycl null timeout int
+**Глобальные флаги** — `--json`, `--no-color`, `--strict-keys`, `--verbose`, `--debug`.
+
+#### Диагностика
+
+Ошибки показываются с точной позицией, строкой исходника и подсказкой:
+
+```console
+$ tycl valid app.tycl
+error 1st pair: Invalid value type: nope
+  app.tycl:2:11
+  hint: unknown type "nope", did you mean "int"?
+     2 |     port: nope = 8080,
+       |           ^^^^
+1 error in app.tycl
 ```
 
-**Установка массива:**
+Нарушения контракта отчитываются по каждому ключу и индексу массива, а `--json` отдаёт их
+полями `code` / `message` / `hint` / `span` / `path` / `index` — готовыми для редактора или
+language server.
+
+#### Команды
+
+**Проверка и форматирование**
+
 ```bash
-tycl file set --path=config.tycl ints ports "8080,8081,8082"
-tycl file set --path=config.tycl strings names "dev,prod,stage"
+tycl valid <config> [contract] [--strict-keys]   # валидация по контракту
+tycl syntax <file...>                            # проверка many файлов сразу
+tycl fmt <conf|contract> <file...>               # каноническое форматирование
 ```
 
-**Установка объекта:**
+**Конвертация**
+
 ```bash
-tycl file set --path=config.tycl object server "{host: string = \"127.0.0.1\", port: int = 8080}"
+tycl gen <input> <output> <json|yaml|toml|tycl>  # экспорт в другой формат
+tycl contract <input> <output> <dynamic|flexible|strict>  # построить контракт
 ```
 
-**Установка массива объектов:**
+`gen` умеет проверять по контракту перед конвертацией: `tycl gen app.tycl app.json json --contract=schema.tycl`.
+
+**Чтение и правка значений**
+
 ```bash
-tycl file set --path=config.tycl objects servers "[{host: string = \"a\", port: int = 80}, {host: string = \"b\", port: int = 443}]"
+tycl get <config> <path>                         # прочитать значение
+tycl query <config> [path...]                    # прочитать несколько или все пути
+tycl set <config> <path> <type|auto> <value>     # записать значение
+tycl remove <config> <path>                      # удалить ключ
+tycl structure <config>                          # список всех доступных путей
 ```
 
-**Удаление ключа:**
+Пути адресуют вложенные значения и элементы массивов:
+
 ```bash
-tycl file remove --path=config.tycl int port
-tycl file remove --path=config.tycl object server
+tycl get app.tycl server.port         # вложенный объект
+tycl get app.tycl servers.0.host      # элемент массива объектов
+tycl set app.tycl port auto 9090      # тип определяется автоматически
+tycl set app.tycl timeout int null    # типизированный null
+tycl set app.tycl ports ints 80,443   # замена массива
+tycl set app.tycl servers.0.port int 8081  # правка элемента массива
 ```
 
-**Просмотр структуры:**
+`set` перезаписывает файл в каноническом виде и умеет менять тип ключа, не оставляя старого
+дубликата. Неизвестные пути отклоняются с подсказкой «did you mean».
+
+**Комбинирование**
+
 ```bash
-tycl file structure --path=config.tycl
-# Вывод:
-# Config structure:
-#   int:
-#     port
-#   string:
-#     host
-#   objects:
-#     servers
+tycl merge <base> <override> [more...]
 ```
+
+Поздние файлы побеждают. Вложенные объекты сливаются по ключам, поэтому override описывает
+только то, что меняет.
+
+**Инспекция**
+
+```bash
+tycl ast <file> [config|contract]   # дерево синтаксиса в JSON
+tycl docs <config>                  # рендер документирующих комментариев
+tycl types                          # система типов
+```
+
+`tycl ast` — машинный контракт языка: отдаёт каждый узел с типом, исходным текстом и позицией.
+На этом строятся редакторы и сторонние инструменты.
+
+**Полный пример**
+
+```bash
+# проверить, затем экспортировать
+tycl valid app.tycl schema.tycl
+tycl gen app.tycl app.json json --contract=schema.tycl
+
+# прочитать значение в скрипте
+port=$(tycl get app.tycl server.port)
+
+# отредактировать без редактора
+tycl set app.tycl server.host string 127.0.0.1
+tycl fmt conf app.tycl
+
+# объединить базу с override окружения
+tycl merge base.tycl prod.tycl > merged.tycl
+```
+
+---
 
 ---
 
@@ -387,10 +449,49 @@ type Config struct {
 Пример доступа:
 
 ```go
-cfg, _ := tycl.Process(`{ port: int = 8080, host: string = "localhost" }`, "")
+cfg, _ := tycl.Process(`{ port: int = 8080, host: string = "localhost" }`, "", false)
 port := cfg.IntV["port"]        // 8080 (int)
 host := cfg.StringV["host"]     // "localhost" (string)
 ```
+
+---
+
+## Диагностика
+
+Любая ошибка возвращается плоским списком диагностик: у каждой есть стабильный код,
+сообщение, позиция в исходнике и подсказка, что делать.
+
+```go
+cfg, err := tycl.ProcessSource("app.tycl", code, contract, false)
+if err != nil {
+    for _, d := range tycl.Diagnostics("app.tycl", code, err) {
+        fmt.Println(d.Code, d.Span, d.Message, d.Hint)
+    }
+}
+```
+
+Если нужен только список — берите `tycl.Validate`:
+
+```go
+problems := tycl.Validate("app.tycl", code, contract, false)
+```
+
+Диагностика выглядит так:
+
+```go
+type Diagnostic struct {
+    Code     string  // "type.invalid", "contract.violation", "syntax.parse", ...
+    Severity string  // "error" или "warning"
+    Message  string
+    Hint     string  // что делать
+    Span     *Span   // файл, строка, колонка, ширина
+    Path     string  // путь конфига, где проблема
+    Index    *int    // индекс массива
+}
+```
+
+`diag.Render` форматирует диагностики для терминала, вместе со строкой исходника и кареткой
+под ошибочным токеном.
 
 ---
 
@@ -446,27 +547,30 @@ strict {
 
 ## Генерация других форматов через CLI
 
-CLI-утилита позволяет экспортировать конфиг в JSON, YAML или TOML без написания кода:
+TYCL работает как **промежуточный язык**: вы пишете безопасные и читаемые конфиги, а затем
+экспортируете их для интеграции с другими системами.
 
 ```bash
 tycl gen config.tycl out.json json
 tycl gen config.tycl out.yaml yaml
 tycl gen config.tycl out.toml toml
+cat config.tycl | tycl gen - - json | jq .port
 ```
 
-Это превращает TYCL в **промежуточный язык**: вы пишете безопасный и читаемый TYCL, а затем генерируете файлы для интеграции с другими системами.
+Полный набор команд — в разделе [Команды](#команды).
 
 ---
 
 ## Генерация контрактов
 
-TYCL умеет автоматически генерировать контракты из существующих конфигов:
+TYCL умеет автоматически строить контракт по существующему конфигу:
 
 ```bash
 tycl contract config.tycl contract.tycl strict
 ```
 
-Это полезно, когда у вас уже есть конфиг, и вы хотите создать схему для валидации будущих изменений.
+Это полезно, когда конфиг уже есть, а нужна схема для валидации будущих изменений. Та же
+операция доступна из Go через `generation.ContractFromConfig`.
 
 ---
 
