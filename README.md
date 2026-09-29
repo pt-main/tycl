@@ -11,6 +11,8 @@ go get github.com/pt-main/tycl
 **TYCL** is a typed configuration language for Go.  
 It provides strong typing, contracts (schemas), and a readable syntax – without code generation and without `interface{}`.
 
+[Changelog](docs/changelog.md) | [Russian version](docs/changelog-ru.md)
+
 ---
 
 ## Why TYCL?
