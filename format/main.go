@@ -13,7 +13,10 @@ import (
 )
 
 func FormContract(code string) (string, core.ErrorInterface) {
-	p := lcprocC.NewParser()
+	p, err := lcprocC.NewParser()
+	if err != nil {
+		return "", err
+	}
 	pn, err := p.Parse(code)
 	if err != nil {
 		return "", err
@@ -22,7 +25,10 @@ func FormContract(code string) (string, core.ErrorInterface) {
 }
 
 func FormConfig(code string) (string, core.ErrorInterface) {
-	p := lcprocL.NewParser()
+	p, err := lcprocL.NewParser()
+	if err != nil {
+		return "", err
+	}
 	pn, err := p.Parse(code)
 	if err != nil {
 		return "", err

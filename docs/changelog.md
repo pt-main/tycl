@@ -7,6 +7,32 @@ versioning follows [SemVer](https://semver.org/).
 
 [Russian version](changelog-ru.md)
 
+## [1.4.2]
+
+### Changed
+
+- **`lc` v2.0.1 -> v2.1.0.** The dependency was moved to the current release.
+  The lexer rules now take plain pattern strings instead of precompiled
+  `regexp2` values, and `stringParsing.NewLexer` reports a pattern that fails
+  to compile, so `lcproc.NewLexer` and `lcproc.NewParser` in both `lang` and
+  `contract` return `(*T, core.ErrorInterface)` and every call site handles the
+  error. `regexp2` is no longer a dependency and was dropped from `go.mod`.
+
+### Fixed
+
+- **Nested object errors were swallowed.** An invalid pair inside a nested
+  object was replaced by a generic "Invalid value for object" message pointing
+  at the outer key. `lang.parseType` overwrote the error produced by the nested
+  parse, so the diagnostics layer reported the outer pair instead of the real
+  mistake. The nested error now propagates and is reported at its own position.
+- **Nested objects are walked in place.** `parseNested` called
+  `configParser.parseObject`, which did not exist, so the project did not
+  compile. The body parser was split out of `ParseBody` into `parseObject`,
+  which takes any object node; a nested object is now parsed from the tree
+  instead of re-lexing its raw text once per nesting level.
+- The unused `configParser.offsetOf` was removed after the nested-object
+  refactor.
+
 ## [1.4.0] - 2026-09-29
 
 A release about observability and a complete CLI. The main work is a flat

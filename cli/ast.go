@@ -41,14 +41,20 @@ func astHandler(ctx *Ctx, args []string) *Result {
 	var root *stringParsing.ParsedNode
 	switch kind {
 	case "config", "conf":
-		parser := lcprocL.NewParser()
+		parser, perr := lcprocL.NewParser()
+		if perr != nil {
+			return Fail(diag.FromError(in.Source, perr)...)
+		}
 		nodes, perr := parser.Parse(in.Text)
 		if perr != nil {
 			return Fail(diag.FromError(in.Source, perr)...)
 		}
 		root = &nodes[0]
 	case "contract", "cont":
-		parser := lcprocC.NewParser()
+		parser, perr := lcprocC.NewParser()
+		if perr != nil {
+			return Fail(diag.FromError(in.Source, perr)...)
+		}
 		nodes, perr := parser.Parse(in.Text)
 		if perr != nil {
 			return Fail(diag.FromError(in.Source, perr)...)

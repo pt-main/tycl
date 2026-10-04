@@ -10,7 +10,7 @@ import (
 	"github.com/pt-main/tycl/shared"
 )
 
-var Version = "1.4.1"
+var Version = "1.4.2"
 
 // Process parses a config and validates it against a contract.
 //

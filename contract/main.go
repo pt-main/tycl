@@ -13,7 +13,10 @@ import (
 )
 
 func ParseContract(code string) (*shared.Contract, core.ErrorInterface) {
-	p := lcproc.NewParser()
+	p, err := lcproc.NewParser()
+	if err != nil {
+		return nil, err
+	}
 	pn, err := p.Parse(code)
 	if err != nil {
 		return nil, err

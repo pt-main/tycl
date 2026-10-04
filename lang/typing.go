@@ -11,18 +11,6 @@ import (
 	"github.com/pt-main/tycl/shared"
 )
 
-// offsetOf returns the position of a node in the original file.
-func (cp *configParser) offsetOf(node *stringParsing.ParsedNode) int {
-	if node == nil {
-		return cp.Base
-	}
-	start, ok := node.Metadata["__start"].(int)
-	if !ok {
-		return cp.Base
-	}
-	return cp.Base + start
-}
-
 // offsetOfFirstToken returns the position of the left-most token of a node.
 //
 // Composite nodes are rebuilt from their children during parsing and carry no

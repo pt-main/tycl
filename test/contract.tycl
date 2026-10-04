@@ -8,5 +8,5 @@ flexible {
     },
     test1: objects = flexible {
         key: string,
-    }, // test
+    },
 }

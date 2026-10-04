@@ -1,34 +1,33 @@
 package lcproc
 
 import (
-	"github.com/dlclark/regexp2"
+	"github.com/pt-main/lc/v2/engine/core"
 	"github.com/pt-main/lc/v2/parsing/stringParsing"
 	"github.com/pt-main/lc/v2/parsing/stringParsing/parser3"
 )
 
-func NewLexer() *stringParsing.Lexer {
+func NewLexer() (*stringParsing.Lexer, core.ErrorInterface) {
 	rules := []stringParsing.LexerRule{
-		{Type: "STRING", Pattern: regexp2.MustCompile(`"(?:\\.|[^"\\])*"`, 0)},
-		{Type: "STRING", Pattern: regexp2.MustCompile(`'(?:\\.|[^'\\])*'`, 0)},
-		// {Type: "LITERAL", Pattern: regexp2.MustCompile("(?s)`"+`(?:\\.|[^`+"`"+`\\])*`+"`", 0)},
-		{Type: "COMMENT", Pattern: regexp2.MustCompile(`(?s)/\*(?<value>.*?)\*/`, 0)},
-		{Type: "COMMENT_LINE", Pattern: regexp2.MustCompile(`//[^\n]*`, 0)},
-		{Type: "FLOAT", Pattern: regexp2.MustCompile(`-?\d+\.\d+`, 0)},
-		{Type: "INT", Pattern: regexp2.MustCompile(`-?\d+`, 0)},
-		{Type: "BOOL", Pattern: regexp2.MustCompile(`true|false`, 0)},
-		{Type: "NULL", Pattern: regexp2.MustCompile(`null`, 0)},
-		{Type: "IDENT", Pattern: regexp2.MustCompile(`[a-zA-Z_][a-zA-Z0-9_\-]*`, 0)},
-		{Type: "ASSIGN", Pattern: regexp2.MustCompile(`=`, 0)},
-		{Type: "COLON", Pattern: regexp2.MustCompile(`:`, 0)},
-		{Type: "LBRACE", Pattern: regexp2.MustCompile(`\{`, 0)},
-		{Type: "RBRACE", Pattern: regexp2.MustCompile(`\}`, 0)},
-		{Type: "LBRACK", Pattern: regexp2.MustCompile(`\[`, 0)},
-		{Type: "RBRACK", Pattern: regexp2.MustCompile(`\]`, 0)},
-		{Type: "LPAREN", Pattern: regexp2.MustCompile(`\(`, 0)},
-		{Type: "RPAREN", Pattern: regexp2.MustCompile(`\)`, 0)},
-		{Type: "SEPARATOR", Pattern: regexp2.MustCompile(`,`, 0)},
+		{Type: "STRING", Pattern: `"(?:\\.|[^"\\])*"`},
+		{Type: "STRING", Pattern: `'(?:\\.|[^'\\])*'`},
+		{Type: "COMMENT", Pattern: `(?s)/\*(?<value>.*?)\*/`},
+		{Type: "COMMENT_LINE", Pattern: `//[^\n]*`},
+		{Type: "FLOAT", Pattern: `-?\d+\.\d+`},
+		{Type: "INT", Pattern: `-?\d+`},
+		{Type: "BOOL", Pattern: `true|false`},
+		{Type: "NULL", Pattern: `null`},
+		{Type: "IDENT", Pattern: `[a-zA-Z_][a-zA-Z0-9_\-]*`},
+		{Type: "ASSIGN", Pattern: `=`},
+		{Type: "COLON", Pattern: `:`},
+		{Type: "LBRACE", Pattern: `\{`},
+		{Type: "RBRACE", Pattern: `\}`},
+		{Type: "LBRACK", Pattern: `\[`},
+		{Type: "RBRACK", Pattern: `\]`},
+		{Type: "LPAREN", Pattern: `\(`},
+		{Type: "RPAREN", Pattern: `\)`},
+		{Type: "SEPARATOR", Pattern: `,`},
 
-		{Type: "WHITESPACE", Pattern: regexp2.MustCompile(`\s+`, 0)},
+		{Type: "WHITESPACE", Pattern: `\s+`},
 	}
 	config := &stringParsing.LexerConfig{UseBracketBalance: false}
 	return stringParsing.NewLexer(rules, config)
@@ -170,9 +169,13 @@ func createGrammar() parser3.Grammar {
 	}
 }
 
-func NewParser() *parser3.Parser {
-	return parser3.NewParser(NewLexer(), createGrammar(), "config", []string{
+func NewParser() (*parser3.Parser, core.ErrorInterface) {
+	lexer, err := NewLexer()
+	if err != nil {
+		return nil, err
+	}
+	return parser3.NewParser(lexer, createGrammar(), "config", []string{
 		"WHITESPACE",
 		"COMMENT_LINE",
-	})
+	}), nil
 }

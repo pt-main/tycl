@@ -1,11 +1,7 @@
 github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
-github.com/dlclark/regexp2 v1.12.0 h1:0j4c5qQmnC6XOWNjP3PIXURXN2gWx76rd3KvgdPkCz8=
-github.com/dlclark/regexp2 v1.12.0/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
-github.com/pt-main/lc/v2 v2.0.1 h1:mMbfvNR1ODHrqHuiy4UyXvt3+lqLMDwA5RXuaNN8xi4=
-github.com/pt-main/lc/v2 v2.0.1/go.mod h1:EC3bagFUPid+HNvabPYnUdlBGVGJGwP8Dqz1Yd2cKfg=
-github.com/pt-main/tap/go v1.5.8 h1:f2thGjf2OgcIq3Ehtpt3Fln5ZLSm7q33+eodMP416/k=
-github.com/pt-main/tap/go v1.5.8/go.mod h1:JhdaGAsrmcZVFSANOv8PlSuKcF0Uqx0Kad2XakiOPlM=
+github.com/pt-main/lc/v2 v2.1.0 h1:Hk4zbUylClF0JuQBEyyP3Whor4RYnpZgbMOyoog5TdY=
+github.com/pt-main/lc/v2 v2.1.0/go.mod h1:7AuKSQ2jy8CtJ91TigI3PHE7CiQmf1EXbMbcl1jEOpM=
 github.com/pt-main/tap/go v1.5.9 h1:u/CZDvNfOQUcGbi87XEVhuRgIUun64TQxoO2GyJTMdY=
 github.com/pt-main/tap/go v1.5.9/go.mod h1:JhdaGAsrmcZVFSANOv8PlSuKcF0Uqx0Kad2XakiOPlM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=

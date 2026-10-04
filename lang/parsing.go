@@ -47,22 +47,41 @@ func (cp *configParser) parseType(node *stringParsing.ParsedNode, vtype, value s
 			return
 		}
 	case "object":
-		var obj *shared.Config
+		// The subtree is already tokenized, so it is walked directly instead of
+		// re-lexing the raw text, which tokenized the whole nested object once
+		// per nesting level.
 		newconf := shared.NewNilConfig()
 		newconf.MainConf = cp.Conf
-		obj, err = ParseConfAt(newconf, value, cp.StrictKeys, cp.offsetOf(node))
+		var obj *shared.Config
+		obj, err = cp.parseNested(newconf, node)
 		if err == nil {
 			obj.Name = "inner"
 			objectv = obj
 			return
 		}
 	}
+	if err != nil {
+		return
+	}
 	if cause != nil {
 		err = core.Wrap(shared.WrappedError, cause, "Parsing: %v", cause.Error())
+		return
 	}
 	err = core.Err(shared.RuntimeError, "Invalid value for %v: %v", vtype, describeValue(value)).
 		WithMeta("hint", valueSuggestion(vtype, value))
 	return
+}
+
+// parseNested fills conf from an object node that is already part of the
+// tree, shifting the reported offsets by the node's own position.
+func (cp *configParser) parseNested(conf *shared.Config, node *stringParsing.ParsedNode) (*shared.Config, core.ErrorInterface) {
+	inner := configParser{
+		Conf:       conf,
+		StrictKeys: cp.StrictKeys,
+		Node:       node,
+		Base:       cp.Base,
+	}
+	return inner.parseObject(node)
 }
 
 // describeValue renders a value for an error message without dumping a

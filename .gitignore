@@ -4,3 +4,4 @@ tycl
 __pycache__/
 AGENTS.md
 build/
+.tmp

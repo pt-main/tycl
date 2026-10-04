@@ -19,7 +19,10 @@ func ParseConf(conf *shared.Config, code string, strictKeys bool) (*shared.Confi
 // ParseConfAt parses config code that starts at a known offset in the
 // original file, so errors inside it are reported at real file positions.
 func ParseConfAt(conf *shared.Config, code string, strictKeys bool, base int) (*shared.Config, core.ErrorInterface) {
-	p := lcproc.NewParser()
+	p, err := lcproc.NewParser()
+	if err != nil {
+		return nil, err
+	}
 	pn, err := p.Parse(code)
 	if err != nil {
 		return nil, err
@@ -176,6 +179,16 @@ func (cp *configParser) ParseBody() (conf *shared.Config, err core.ErrorInterfac
 			cp.Node, "config",
 		), "object",
 	)
+	return cp.parseObject(object)
+}
+
+// parseObject fills cp.Conf from an already built object node, so nested
+// objects are walked in place instead of being re-parsed from their raw text.
+func (cp *configParser) parseObject(object *stringParsing.ParsedNode) (conf *shared.Config, err core.ErrorInterface) {
+	defer func() {
+		conf = cp.Conf
+	}()
+
 	pairs := astools.FindChildren(object, "pair")
 	comments := astools.FindChildren(object, "COMMENT")
 
